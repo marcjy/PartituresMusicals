@@ -1,0 +1,4 @@
+node_modules/*
+uploaded/*
+package-lock.json
+tests/*

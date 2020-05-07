@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Partitures Musicals</title>
+    <link rel="stylesheet" type="text/css" href="css/styleSheet.css">
+    <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  </head>
+
+  <body>
+    <div id="header">
+      <h1>X</h1>
+    </div>
+
+    <div id="uploadForm">
+      <form action="/upload" method="post" enctype="multipart/form-data">
+        <label for="musicxml">Archivo MusicXML</label><input type="file" id="musicxml" name="musicxml" accept=".musicxml, .xml"><br />
+        <label for="imgPartitura">Imagen de la partitura</label><input type="file" id="imgPartitura" name="imgPartitura" accept="image/png, image/jpeg"><br />
+        <input type="submit" value="Submit">
+      </form>
+    </div>
+
+    <div id="footer">
+      <footer>
+        <p> Marc Martín Martínez - Universitat Autònoma de Barcelona - Partitures Musicals </p>
+      </footer>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,80 @@
+.container {
+   display: grid;
+   grid-template-columns: 75px 75px 75px 75px 75px 75px 75px;
+   grid-template-rows: 75px;
+   grid-gap: 20px;
+}
+
+.containerInf {
+  display: grid;
+  grid-template-columns: 300px 300px;
+  grid-template-rows: 150px 150px;
+  grid-gap: 20px;
+}
+
+.containerProlongaciones {
+  display: grid;
+  grid-template-columns: 75px 75px 75px;
+  grid-template-rows: 75px;
+  grid-gap: 20px;
+}
+
+.container div {
+  display: block;
+}
+
+.containerInf * {
+  display: block;
+}
+
+
+/*-------------------------Editor--------------------------*/
+
+#editor {
+  border: solid;
+  border-color:0000;
+}
+
+#editor section{
+  margin: auto;
+  width: 50%;
+  padding: 10px;
+}
+
+/*---------------------------------------------------------*/
+
+
+/*-------------------Component selectores------------------*/
+.selectores div {
+  padding: 3px;
+}
+
+/*---------------------------------------------------------*/
+
+
+/*---------------------Component notas---------------------*/
+#notas {
+  font-size: 50px;
+}
+
+#duracion img{
+  width: 50px;
+  height: 60px;
+}
+
+#silencios img{
+  width: 50px;
+  height: 60px;
+}
+/*---------------------------------------------------------*/
+
+/*---------------------Component notas---------------------*/
+#prolongaciones {
+  text-align: center;
+}
+
+#prolongaciones img {
+  width: 50px;
+  height: 60px;
+}
+/*---------------------------------------------------------*/
