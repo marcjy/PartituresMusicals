@@ -44,15 +44,8 @@ app.post('/upload', (req, res) => {
   }
 });
 app.get('/xml', (req, res) => {
-
-  const libxmljs = require("libxmljs");
-
-
-  let xmlString =  '<h1>Hi</h1>';
-  let xmlDoc = libxmljs.parseXml(xmlString);
-
   res.set('Content-Type', 'text/xml');
-  res.send(xmlDoc);
+  res.sendFile(__dirname + '/uploaded/1.xml');
 });
 
 
