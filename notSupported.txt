@@ -1,0 +1,3 @@
+CLEFS:
+	-Bass Clef (Down Octave)
+	-Vocal Tenor Clef
