@@ -15,7 +15,7 @@
     <div id="uploadForm">
       <form action="/upload" method="post" enctype="multipart/form-data">
         <label for="musicxml">Archivo MusicXML</label><input type="file" id="musicxml" name="musicxml" accept=".musicxml, .xml"><br />
-        <label for="imgPartitura">Imagen de la partitura</label><input type="file" id="imgPartitura" name="imgPartitura" accept="image/png, image/jpeg"><br />
+        <label for="imgPartitura">Imagen(es) de la partitura</label><input multiple type="file" id="imgPartitura" name="imgPartitura" accept="image/png, image/jpeg"><br />
         <input type="submit" value="Submit">
       </form>
     </div>

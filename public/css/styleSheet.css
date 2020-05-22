@@ -78,3 +78,93 @@
   height: 60px;
 }
 /*---------------------------------------------------------*/
+
+
+/*---------------------Zoom Image---------------------------*/
+input[type=checkbox] {
+  display: none;
+}
+#imgPartitura {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+#imgPartitura img {
+  margin: 100px;
+  transition: transform 0.25s ease;
+  cursor: zoom-in;
+
+  width: 800px;
+  height: 300px;
+
+}
+
+input[type=checkbox]:checked ~ label > img {
+  transform: scale(2);
+  cursor: zoom-out;
+}
+
+/*---------------------------------------------------------*/
+
+/*------------------Arrows Next/Previous-------------------*/
+#imgPartitura button {
+  text-decoration: none;
+  display: inline-block;
+  padding: 20px;
+  font-size: 35px;
+  width: 40px;
+  text-align: center;
+}
+
+#imgPartitura button:disabled {
+  background-color: #acacac;
+}
+.back:hover {
+  background-color: rgb(49, 49, 49);
+}
+.next:hover {
+  background-color: rgb(49, 49, 49);
+}
+.back {
+  border-radius: 50%;
+  background-color: black;
+  color: white;
+}
+.next {
+  border-radius: 50%;
+  background-color: black;
+  color: white;
+}
+/*---------------------------------------------------------*/
+
+
+/*--------------------Measure Navigator--------------------*/
+#buttonsNavigator {
+  text-align: center;
+}
+#buttonsNavigator button {
+  width: 210px;
+  margin-right: 50px;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: black;
+  border: none;
+  color: #FFFFFF;
+  text-align: center;
+  font-size: 28px;
+  padding: 5px;
+  transition: all 0.5s;
+  cursor: pointer;
+}
+
+#buttonsNavigator button:disabled {
+  border: 1px solid #999999;
+  background-color: #cccccc;
+  color: #666666;
+}
+
+#buttonsNavigator button:hover {
+  background-color: rgb(49, 49, 49);
+}
+
+/*---------------------------------------------------------*/

@@ -1,5 +1,5 @@
 node_modules/*
-uploaded/*
+public/uploaded/*
 package-lock.json
 tests/*
 .vscode/*
