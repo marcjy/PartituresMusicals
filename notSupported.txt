@@ -10,3 +10,10 @@ KEY SIGNATURE:
 	- Aeolian
 	- Ionian
 	- Locrian
+THEORETICAL KEYS:
+	-Fb
+	-db
+	-G#
+	-e#
+
+Cambio de atributos en mitad de la partitura.

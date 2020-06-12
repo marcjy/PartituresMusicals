@@ -8,9 +8,9 @@ const NEXT_GROUP_MEASURES = "next";
 const PREVIOUS_GROUP_MEASURES = "previous";
 
 const SVG_WITDH = getBrowserWidth() - 75;      //For adapting svg size to the client
-const SVG_HEIGHT = 150;
+const SVG_HEIGHT = 350;
 const SVG_MARGIN_LEFT = 50;
-const MEASURE_HEIGHT = 50;
+const MEASURE_HEIGHT = 125;
 const MEASURE_WIDTH = SVG_WITDH/6 - 15;
 
 function getBrowserWidth() {      
@@ -994,6 +994,8 @@ Vue.component("nav-bar", {
       },
       musicalNotation: "solmization",
 
+      octave: null,
+
       clef: null,
       timeSignature: null,
       keySignature: null,
@@ -1034,8 +1036,13 @@ Vue.component("nav-bar", {
       else { this.musicalNotation = "solmization"; }      
     },
     noteClicked: function(note) {
-      //TODO
-      console.log(note);
+      if(this.octave != null) {
+        newNote = {
+          step: note,
+          octave: this.octave
+        }
+        this.$emit("change-note", newNote);
+      }
     },
     accidentalClicked: function(accidental) {     
       this.$emit("change-accidental", accidental);
@@ -1066,6 +1073,9 @@ Vue.component("nav-bar", {
       <div class="divider"></div>
       <div class="container" id="nav-bar-options-notes" v-if="displayOptions['notes']">
         <button v-for="(note, i) in optionNotes[musicalNotation]" v-on:click="noteClicked(optionNotes['alphabetic'][i])">{{note}}</button>
+        <div class="dividerBlurred"></div>
+        <label id="labelOctave" title="[0-9]" for="selectOctave">Octave:</label>
+        <input type="number" id="selectOctave" v-model="octave" min="0" max="9">
         <div class="divider"></div>
         <button v-for="(accidental, i) in optionAccidental[musicalNotation]" v-bind:title="accidental" v-on:click="accidentalClicked(optionAccidental['alphabetic'][i])"><img v-bind:src="pImgAccidentals[i]"></button>
       </div>
@@ -1268,6 +1278,20 @@ new Vue({
       var indexMeasure = nMeasure / N_MEASURES;
       indexMeasure = Math.floor(indexMeasure);
       this.loadGroupMeasures(indexMeasure * N_MEASURES);
+    },
+    changeNote: function(note) {      
+      var infoNote = document.getElementById("nav-bar").getAttribute("infoelementclicked");
+      
+      infoNote = infoNote.split(",");
+      var nMeasure = infoNote[0];
+      var nNote = infoNote[1];
+      
+      this.xmlParser.changeNote(note, nMeasure, nNote);
+
+
+      var indexMeasure = nMeasure / N_MEASURES;
+      indexMeasure = Math.floor(indexMeasure);
+      this.loadGroupMeasures(indexMeasure * N_MEASURES);
     }
 
   },
@@ -1287,6 +1311,7 @@ new Vue({
       v-on:change-time-signature="changeTimeSignature($event)"
       v-on:change-key-signature="changeKeySignature($event)"
       
+      v-on:change-note="changeNote($event)"
       v-on:change-accidental="changeAccidental($event)">
     </nav-bar>
 
