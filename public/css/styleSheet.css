@@ -1,95 +1,123 @@
-.container {
-   display: grid;
-   grid-template-columns: 75px 75px 75px 75px 75px 75px 75px;
-   grid-template-rows: 75px;
-   grid-gap: 20px;
+@import url('https://fonts.googleapis.com/css2?family=Raleway&display=swap');
+
+body {
+  font-family: "Raleway", sans-serif;
 }
 
-.containerInf {
-  display: grid;
-  grid-template-columns: 300px 300px;
-  grid-template-rows: 150px 150px;
-  grid-gap: 20px;
+/*------------------------Header---------------------------*/
+#header {
+  text-align: center;
+
 }
 
-.containerProlongaciones {
-  display: grid;
-  grid-template-columns: 75px 75px 75px;
-  grid-template-rows: 75px;
-  grid-gap: 20px;
+/*---------------------------------------------------------*/
+
+/*---------------------nav-bar-----------------------------*/
+
+#nav-bar-menu {
+  background-color: rgb(49, 49, 49);
+  border-radius: 5px;
 }
 
-.container div {
-  display: block;
-}
-
-.containerInf * {
-  display: block;
-}
-
-
-/*-------------------------Editor--------------------------*/
-
-#editor {
-  border: solid;
-  border-color:0000;
-}
-
-#editor section{
-  margin: auto;
-  width: 50%;
+#nav-bar-menu button {
+  border: 0px;
+  background: transparent;
+  font-family : inherit;
+  font-size: 15px;
+  color: white;
   padding: 10px;
+  margin-left: 25px;
+  cursor: pointer;
+}
+#nav-bar-menu button:hover {
+background-color: black;
 }
 
-/*---------------------------------------------------------*/
 
-
-/*-------------------Component selectores------------------*/
-.selectores div {
-  padding: 3px;
+#nav-bar-options {
+  margin-left: 50px;
+  background-color: #858585;
+  border-radius: 5px;
+  display: flex;
+  height: 65px;
+}
+#nav-bar-options img{
+  width: 20px;
+  height: 30px;
 }
 
-/*---------------------------------------------------------*/
-
-
-/*---------------------Component notas---------------------*/
-#notas {
-  font-size: 50px;
+#nav-bar-options button {
+  border: 0px;
+  background: transparent;
+  font-family : inherit;
+  font-size: 15px;
+  color: white;
+  padding: 15px 25px 15px 25px;
+  cursor: pointer;
+}
+#nav-bar-options button:hover {
+  background-color: #616161;
 }
 
-#duracion img{
+#nav-bar-options-measure img {
   width: 50px;
-  height: 60px;
+  height: 50px;
+
+  margin: 10px 0px 10px 10px;
 }
 
-#silencios img{
-  width: 50px;
-  height: 60px;
-}
-/*---------------------------------------------------------*/
+#nav-bar-options-measure select {
+  padding: 10px 10px 10px 0px;
+  margin: 10px 10px 10px 0px;
+  background-color: #858585;
+  border: 0;
+  color: white;
+  font-family: inherit;
 
-/*---------------------Component notas---------------------*/
-#prolongaciones {
+
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+
+
+.container {
+  display: flex;
   text-align: center;
 }
-
-#prolongaciones img {
-  width: 50px;
-  height: 60px;
+.option {
+  cursor: pointer;
 }
+
+.arrow{
+
+}
+
+.arrowRotate{
+  transform: rotate(360deg);
+  transition: transform 1s linear;
+}
+
+
+
+.divider {
+  border-right:1px solid #16222c; 
+}
+
 /*---------------------------------------------------------*/
+
 
 
 /*---------------------Zoom Image---------------------------*/
 input[type=checkbox] {
   display: none;
 }
-#imgPartitura {
+#img-score {
   text-align: center;
   margin-bottom: 40px;
 }
 
-#imgPartitura img {
+#img-score img {
   margin: 100px;
   transition: transform 0.25s ease;
   cursor: zoom-in;
@@ -103,11 +131,11 @@ input[type=checkbox]:checked ~ label > img {
   transform: scale(2);
   cursor: zoom-out;
 }
-
 /*---------------------------------------------------------*/
 
+
 /*------------------Arrows Next/Previous-------------------*/
-#imgPartitura button {
+#img-score button {
   text-decoration: none;
   display: inline-block;
   padding: 20px;
@@ -116,27 +144,32 @@ input[type=checkbox]:checked ~ label > img {
   text-align: center;
 }
 
-#imgPartitura button:disabled {
+#img-score button:disabled {
   background-color: #acacac;
 }
 .back:hover {
-  background-color: rgb(49, 49, 49);
+  background-color: black;
 }
 .next:hover {
-  background-color: rgb(49, 49, 49);
+  background-color: black;
 }
 .back {
   border-radius: 50%;
-  background-color: black;
+  background-color: rgb(49, 49, 49);
   color: white;
 }
 .next {
   border-radius: 50%;
-  background-color: black;
+  background-color: rgb(49, 49, 49);
   color: white;
 }
 /*---------------------------------------------------------*/
 
+/*-----------------------Partitura-------------------------*/
+#partitura {
+  margin-bottom: 50px;
+}
+/*---------------------------------------------------------*/
 
 /*--------------------Measure Navigator--------------------*/
 #buttonsNavigator {
@@ -147,7 +180,7 @@ input[type=checkbox]:checked ~ label > img {
   margin-right: 50px;
   display: inline-block;
   border-radius: 4px;
-  background-color: black;
+  background-color: rgb(49, 49, 49);
   border: none;
   color: #FFFFFF;
   text-align: center;
@@ -164,7 +197,6 @@ input[type=checkbox]:checked ~ label > img {
 }
 
 #buttonsNavigator button:hover {
-  background-color: rgb(49, 49, 49);
+  background-color: black
 }
-
 /*---------------------------------------------------------*/

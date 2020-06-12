@@ -3,13 +3,42 @@ const ONE_SECOND = 1000;
 const TAG_NOT_FOUND = "T404";
 const TYPE_TAG_UNKNOWN = "DT404";
 
-const N_MEASURES = 6   //TODO
+const N_MEASURES = 5
 const NEXT_GROUP_MEASURES = "next";
 const PREVIOUS_GROUP_MEASURES = "previous";
 
-const MEASURE_WIDTH = 300;
-const SVG_WITDH = 1900;
-const SVG_HEIGHT = 200;
+const SVG_WITDH = getBrowserWidth() - 75;      //For adapting svg size to the client
+const SVG_HEIGHT = 100;
+const SVG_MARGIN_LEFT = 50;
+const MEASURE_WIDTH = SVG_WITDH/6 - 15;
+
+function getBrowserWidth() {      
+  return Math.max(
+    document.body.scrollWidth,
+    document.documentElement.scrollWidth,
+    document.body.offsetWidth,
+    document.documentElement.offsetWidth,
+    document.documentElement.clientWidth
+  );
+}
+function getTagFromChildren(tag, children) {
+  let elements = [];
+
+  for(let i = 0; i < children.length; i++) {
+
+    if(children[i].nodeName == tag) {      
+      elements.push(children[i]);
+    }
+  }
+  if(elements.length == 0) {  //Tag not found
+    elements = TAG_NOT_FOUND;
+  }
+
+  if(elements.length == 1) {    //Array to single element
+    elements = elements[0];
+  }
+  return elements;
+}
 //Class XMLManager
 function XMLManager() {
   this.parser = new DOMParser();
@@ -44,7 +73,7 @@ function Note(data) {
     step: null,
     octave: null,
   };
-  this.slur = null;
+  this.tie = null;
 
 /* TODO  this.setData = data => this.data = data;
   this.setIsRest = isRest => this.IsRest = isRest;
@@ -57,8 +86,6 @@ function Note(data) {
 
   this.loadData = () => {    
     let noteChildren = this.data.children;
-
-    let tmp = getTagFromChildren("rest", noteChildren);
 
     if(getTagFromChildren("rest", noteChildren) != TAG_NOT_FOUND) {
       this.isRest = true;
@@ -74,24 +101,25 @@ function Note(data) {
       this.accidental = (getTagFromChildren("accidental", noteChildren)).innerHTML; 
     }
     if(getTagFromChildren("notations", noteChildren) != TAG_NOT_FOUND) {   //Notations tag is optional 
-      let notationsChildren = getTagFromChildren("notations", noteChildren);
+      let notationsChildren = getTagFromChildren("notations", noteChildren).children;
+      
+      if(getTagFromChildren("slur", notationsChildren) != TAG_NOT_FOUND) { 
 
-      if(getTagFromChildren("slur", notationsChildren) != TAG_NOT_FOUND) {
         let notationsAttributes = getTagFromChildren("slur", notationsChildren).attributes;
-        for(let i = 0; i < notationsAttributes; i++) {
+        
+        for(let i = 0; i < notationsAttributes.length; i++) {          
           if(notationsAttributes[i].name == "type") {
-            this.slur = notationsAttributes[i].value;
+            this.tie = notationsAttributes[i].value;
           }
         }
       } else if(getTagFromChildren("tied", notationsChildren) != TAG_NOT_FOUND) {
         let notationsAttributes = getTagFromChildren("tied", notationsChildren).attributes;
-        for(let i = 0; i < notationsAttributes; i++) {
+        for(let i = 0; i < notationsAttributes.length; i++) {
           if(notationsAttributes[i].name == "type") {
-            this.slur = notationsAttributes[i].value;
+            this.tie = notationsAttributes[i].value;
           }
         }
       }
-
     }
     if(this.isRest == false) {     //If isRest == true  -> There is no pitch tag
       this.pitch.step = (getTagFromChildren("step", getTagFromChildren("pitch", noteChildren).children)).innerHTML;
@@ -108,7 +136,7 @@ function Note(data) {
   this.getAccidental = () => this.accidental;
   this.getStep = () => this.pitch.step;
   this.getOctave = () => this.pitch.octave;
-  this.getSlur = () => this.slur;
+  this.getTie = () => this.tie;
 }
 //Class Attributes
 function Attributes() {
@@ -132,9 +160,9 @@ function Attributes() {
     var attrChildren = this.data.children;          
     
     if(getTagFromChildren("divisions", attrChildren) != TAG_NOT_FOUND) { this.divisions = (getTagFromChildren("divisions", attrChildren)).innerHTML;}
-    if(getTagFromChildren("key", attrChildren) != TAG_NOT_FOUND) { 
-      this.key.fifths = (getTagFromChildren("fifths", (getTagFromChildren("key", attrChildren)).children)).innerHTMl;
-      this.key.mode = (getTagFromChildren("mode", (getTagFromChildren("key", attrChildren)).children)).innerHTML;
+    if(getTagFromChildren("key", attrChildren) != TAG_NOT_FOUND) {             
+      this.key.fifths = (getTagFromChildren("fifths", (getTagFromChildren("key", attrChildren)).children)).innerHTML;
+      this.key.mode =  (getTagFromChildren("mode", (getTagFromChildren("key", attrChildren)).children)).innerHTML;
     }
     if(getTagFromChildren("time", attrChildren) != TAG_NOT_FOUND) {
       this.time.beats = (getTagFromChildren("beats", (getTagFromChildren("time", attrChildren)).children)).innerHTML;
@@ -143,7 +171,7 @@ function Attributes() {
     if(getTagFromChildren("clef", attrChildren) != TAG_NOT_FOUND) { 
       this.clef.sign = (getTagFromChildren("sign", (getTagFromChildren("clef", attrChildren)).children)).innerHTML; 
       this.clef.line = (getTagFromChildren("line", (getTagFromChildren("clef", attrChildren)).children)).innerHTML;
-  }
+  }  
 }
 
   this.setData = data => this.data = data;
@@ -161,25 +189,25 @@ function Attributes() {
 function TieGenerator() {
   this.start = null;
   this.end = null;
-  this.tie = null;
+  this.finished = false;
 
-  this.createTie = () => {
-    
-    this.tie = new VF.StaveTie({
+  this.createTie = () => {    
+    let tie = new VF.StaveTie({
       first_note: this.start,
       last_note: this.end,
       first_indices: [0],
       last_indices: [0]
     });    
 
-    this.staveNoteStart = null;
-    this.staveNoteEnd = null;
+    this.start = null;
+    this.end = null;
+    this.finished = true;
 
-    return this.tie;
+    return tie;
   }
-
-  this.setStart = start => this.start = start;
+  this.setStart = start => { this.start = start; this.finished = false; }
   this.setEnd = end => this.end = end;
+  this.getFinished = () => this.finished;
 }
 //Class MusicXMLToVexFlow
 function MusicXMLToVexFlow() {
@@ -348,223 +376,548 @@ function MusicXMLToVexFlow() {
 
     return result;
   }
-}
-
-
-function getAttributes(children) {     
-   attributes.setData(getTagFromChildren("attributes", children));
-   attributes.loadData();
-
-   return attributes;
-}
-function getNotes(children) {
-  
-  let notes = [];
-  let arrayNotes = getTagFromChildren("note", children); 
-  
-  if( !(Array.isArray(arrayNotes)) ) {
-    notes[0] = new Note(arrayNotes);
-    notes[0].loadData(); 
-  } else {
-    for(let i = 0; i < arrayNotes.length; i++) {    
-      notes[i] = new Note(arrayNotes[i]);                
-      notes[i].loadData();    
-    }
-  }
-
-  return notes;
-}
-function loadNotesToVF(notes, divisions, clefVF) {
-  let notesVF = [];
-  let tiesVF = [];
-
-  for(let i = 0; i < notes.length; i ++) {    //for each note
-    let keyVF = [];
-    let durationVF = null;
-    let accidentalVF = null;
-    let hasAccidental = false;    
-
-    if(notes[i].getAccidental() != null) {
-      accidentalVF = xml2vf.translateAccidental(notes[i].getAccidental());
-      hasAccidental = true;
-    }
+  this.translateKeySignature = (fifths, mode) => {
+    let keySignature = "";
     
-    if(xml2vf.translateType(notes[i].getType()) != TYPE_TAG_UNKNOWN) {    //In case note has a duration  modifier (dot for example)
-      durationVF = xml2vf.translateType(notes[i].getType());
-    } else {
-      durationVF = xml2vf.translateDuration(divisions, notes[i].getDuration());
+    switch(fifths) {
+        case "-7":
+          if(mode == "major") { keySignature = "Cb"}
+          else {keySignature = "Abm"}
+          break;
+        case "-6":
+          if(mode == "major") { keySignature = "Gb"}
+          else { keySignature = "Ebm"}
+          break;
+        case "-5":
+          if(mode == "major") { keySignature = "Db"}
+          else { keySignature = "Bbm"}
+          break;
+        case "-4":
+          if(mode == "major") { keySignature = "Ab"}
+          else { keySignature = "Fm"}
+          break;
+        case "-3":
+          if(mode == "major") { keySignature = "Eb"}
+          else { keySignature = "Cm"}
+          break;
+        case "-2":
+          if(mode == "major") { keySignature = "Bb"}
+          else { keySignature = "Gm"}
+          break;
+        case "-1":
+          if(mode == "major") { keySignature = "F"}
+          else { keySignature = "Dm"}
+          break;
+        case "0":
+          if(mode == "major") { keySignature = "C"}
+          else { keySignature = "Am"}
+          break;
+        case "1":
+          if(mode == "major") { keySignature = "G"}
+          else { keySignature = "Em"}
+          break;
+        case "2":
+          if(mode == "major") { keySignature = "D"}
+          else { keySignature = "Bm"}
+          break;
+        case "3":
+          if(mode == "major") { keySignature = "A"}
+          else { keySignature = "F#m"}
+          break;
+        case "4":
+          if(mode == "major") { keySignature = "E"}
+          else { keySignature = "C#m"}
+          break;
+        case "5":
+          if(mode == "major") { keySignature = "B"}
+          else { keySignature = "G#m"}
+          break;
+        case "6":
+          if(mode == "major") { keySignature = "F#"}
+          else { keySignature = "D#m"}
+          break;
+        case "7":
+          if(mode == "major") { keySignature = "C#"}
+          else { keySignature = "A#m"}
+          break;
+        default:
+          console.log("Error in translateKeySignature. Unknown keySignature.\n Fifths: " + fifths + "\n Mode: " + mode);
+          break;       
     }
-    
-    if(notes[i].getIsRest()) {
-      keyVF.push("b/4");        //specifies the vertical position of the rest
-      durationVF += "r";   //specifies that the element it's a rest, and not a note
-    } else {
-      keyVF.push(xml2vf.translateKey(notes[i].getStep(), notes[i].getOctave(), accidentalVF));
-    } 
 
-    let staveNote = new VF.StaveNote({
-      clef: clefVF,
-      keys: keyVF,
-      duration: durationVF
-    });
-
-    if(hasAccidental) {
-      staveNote.addAccidental(0, new VF.Accidental(accidentalVF));
-    }
-    if(notes[i].getHasDot()) {
-      staveNote.addDot(0);
-    }
-
-    if(notes[i].getSlur() == "start") {
-      tieGenerator.setStart(staveNote);
-    }
-    if(notes[i].getSlur() == "stop") {      
-      tieGenerator.setEnd(staveNote);
-      tiesVF.push(tieGenerator.createTie());
-    }
-
-    notesVF.push(staveNote);
-  }
-
-  return {
-    notesVF: notesVF,
-    tiesVF: tiesVF,
+    return keySignature;
   }
 }
-function showMeasures(contextVF, measures, indexMeasure) {
+
+//Class XMLParser
+function XMLParser() {
+  //Initializing VexFlow
+    VF = Vex.Flow;
+    var div = document.getElementById("partitura");
+    var renderer = new VF.Renderer(div, VF.Renderer.Backends.SVG);
+    renderer.resize(SVG_WITDH, SVG_HEIGHT);
+    this.contextVF = renderer.getContext();
+    this.groupMeasures = this.contextVF.openGroup();
   
-  var children = null;
-  var clefVF = null;
-  var timeSignatureVF = null;
-  var oldMeasureVF = null;
-  var measureVF = null;
-  var tiesVF = null;
+    this.xml = new XMLManager();
+    this.xml2vf = new MusicXMLToVexFlow();
+    this.attributes = new Attributes();
+    this.tieGenerator = new TieGenerator();
+    this.measures = null;
+    this.infoElementClicked = null;
   
-  for(let i = indexMeasure; i < indexMeasure + N_MEASURES; i++) {    //for each measure
-    var notesVF = [];
-    var beamsVF = null;          
+    this.loadXML = () => {
+      this.xml.fetchXML();
+      this.measures = this.xml.getMeasures();
+    }
+  
+    this.getAttributes = (children) => {
+      this.attributes.setData(getTagFromChildren("attributes", children));
+      this.attributes.loadData();
+    }
+    this.getNotes = (children) => {
     
-    if(measures[i] != undefined) {
+      let notes = [];
+      let arrayNotes = getTagFromChildren("note", children); 
       
-      children = measures[i].children;
-      
-      if(getTagFromChildren("attributes", measures[i].children) != TAG_NOT_FOUND) {
-        attributes = getAttributes(measures[i].children);       //Loads attributes or updates them if they are already initialized
+      if( !(Array.isArray(arrayNotes)) ) {
+        notes[0] = new Note(arrayNotes);
+        notes[0].loadData(); 
+      } else {
+        for(let i = 0; i < arrayNotes.length; i++) {    
+          notes[i] = new Note(arrayNotes[i]);                
+          notes[i].loadData();    
+        }
       }
     
-      if(clefVF == null) {
-        clefVF = xml2vf.translateClef(attributes.getSign(), attributes.getLine());
-      }
-      
-      timeSignatureVF = xml2vf.translateTimeSignature(attributes.getBeats(), attributes.getBeatType());
-      
-      infoVF = loadNotesToVF(getNotes(children), attributes.getDivisions(), clefVF); /////////////////////////*
-      notesVF = infoVF.notesVF;
-      tiesVF = infoVF.tiesVF;   
-
-      beamsVF = VF.Beam.generateBeams(notesVF);
+      return notes;
     }
-
+    this.loadNotesToVF = (notes, divisions, clefVF) => {
+      let notesVF = [];
+      let tiesVF = [];
     
-    if(measureVF == null) {     //Add CLEF and TIMESIGNATURE
-      measureVF = new VF.Stave(75, 0, MEASURE_WIDTH);
-      oldMeasureVF = measureVF;
-
-      if(clefVF != null && timeSignatureVF != null) {
+      for(let i = 0; i < notes.length; i ++) {    //for each note
+        let keyVF = [];
+        let durationVF = null;
+        let accidentalVF = null;
+        let hasAccidental = false;      
+    
+        if(notes[i].getAccidental() != null) {
+          accidentalVF = this.xml2vf.translateAccidental(notes[i].getAccidental());
+          hasAccidental = true;
+        }
+        
+        if(this.xml2vf.translateType(notes[i].getType()) != TYPE_TAG_UNKNOWN) {    //In case note has a duration  modifier (dot for example)
+          durationVF = this.xml2vf.translateType(notes[i].getType());
+        } else {
+          durationVF = this.xml2vf.translateDuration(divisions, notes[i].getDuration());
+        }
+        
+        if(notes[i].getIsRest()) {
+          keyVF.push("b/4");        //specifies the vertical position of the rest
+          durationVF += "r";   //specifies that the element it's a rest, and not a note
+        } else {
+          keyVF.push(this.xml2vf.translateKey(notes[i].getStep(), notes[i].getOctave(), accidentalVF));
+        } 
+    
+        let staveNote = new VF.StaveNote({
+          clef: clefVF,
+          keys: keyVF,
+          duration: durationVF
+        });
+    
+        if(hasAccidental) {
+          staveNote.addAccidental(0, new VF.Accidental(accidentalVF));
+        }
+        if(notes[i].getHasDot()) {
+          staveNote.addDot(0);
+        }
+    
+        if(notes[i].getTie() == "start") {
+          this.tieGenerator.setStart(staveNote);
+        }
+        if(notes[i].getTie() == "stop") {      
+          this.tieGenerator.setEnd(staveNote);
+          tiesVF.push(this.tieGenerator.createTie());
+        }    
+        notesVF.push(staveNote);
+      }
+    
+      return {
+        notesVF: notesVF,
+        tiesVF: tiesVF,
+      }
+    }
+    this.showMeasures = (measures, indexMeasure) => {
+      var children = null;
+      var clefVF = null;
+      var timeSignatureVF = null;
+      var keySignatureVF = null;
+      var oldMeasureVF = null;
+      var measureVF = null;
+      var tiesVF = null;
+      var oneMoreTime = 0;
+      
+      for(let i = indexMeasure; i < indexMeasure + N_MEASURES + oneMoreTime; i++) {    //for each measure
+        var notesVF = [];
+        var beamsVF = null;             
+        
+        if(measures[i] != undefined) {    
+          children = measures[i].children;
+    
+          if(getTagFromChildren("attributes", measures[i].children) != TAG_NOT_FOUND) {
+            this.getAttributes(measures[i].children);       //Loads attributes or updates them if they are already initialized
+          }
+        
+          if(clefVF == null) {
+            clefVF = this.xml2vf.translateClef(this.attributes.getSign(), this.attributes.getLine());
+          }
+          timeSignatureVF = this.xml2vf.translateTimeSignature(this.attributes.getBeats(), this.attributes.getBeatType());
+          keySignatureVF = this.xml2vf.translateKeySignature(this.attributes.getFifths(), this.attributes.getMode());    
+          
+          infoVF = this.loadNotesToVF(this.getNotes(children), this.attributes.getDivisions(), clefVF); /////////////////////////*
+          notesVF = infoVF.notesVF;
+          tiesVF = infoVF.tiesVF;   
+          beamsVF = VF.Beam.generateBeams(notesVF);
+        }
+    
+        
+        if(measureVF == null) {     //Add CLEF and TIMESIGNATURE
+          measureVF = new VF.Stave(SVG_MARGIN_LEFT, 0, MEASURE_WIDTH);
+          oldMeasureVF = measureVF;
+    
+          if(clefVF != null && timeSignatureVF != null && keySignatureVF != null)  {        
+            measureVF
+            .addClef(clefVF)
+            .addTimeSignature(timeSignatureVF)
+            .addModifier(new Vex.Flow.KeySignature(keySignatureVF));
+          }
+    
+        } else {
+          measureVF = new VF.Stave(oldMeasureVF.width + oldMeasureVF.x, 0, MEASURE_WIDTH);
+          oldMeasureVF = measureVF;
+        }
+    
+        
         measureVF
-        .addClef(clefVF)
-        .addTimeSignature(timeSignatureVF)
+        .setContext(this.contextVF)
+        .draw();
+    
+        if(notesVF.length != 0) {
+          //Draw
+          VF.Formatter.FormatAndDraw(this.contextVF, measureVF, notesVF);
+          beamsVF.forEach(beam => { beam.setContext(this.contextVF).draw() });
+          tiesVF.forEach(tie => { tie.setContext(this.contextVF).draw() });
+    
+    
+          for( let j = 0; j < notesVF.length; j++) {
+            elementInMeasure = notesVF[j].attrs.el;
+            elementInMeasure.setAttribute("measure", i);
+            elementInMeasure.setAttribute("note", j);
+            elementInMeasure.addEventListener("click", (elementClicked) => {
+              let element = elementClicked.path[3];
+              let attrElement = element.attributes;
+              let info = "";
+    
+              for(let i = 0; i < attrElement.length; i++) {
+                if(attrElement[i].name == "measure") { info += attrElement[i].nodeValue + ", "; }
+                if(attrElement[i].name == "note") { info += attrElement[i].nodeValue; }
+              }  
+              console.log("HOLA");    
+              this.infoElementClicked = info;      
+              document.getElementById("nav-bar").setAttribute("infoElementClicked", info);
+            });
+          }
+        }
+        if(i == (indexMeasure + N_MEASURES) - 1){   //Last iteration      
+          if(!this.tieGenerator.getFinished()) {
+            oneMoreTime = 1;
+          }
+        }
       }
-
-    } else {
-      measureVF = new VF.Stave(oldMeasureVF.width + oldMeasureVF.x, 0, MEASURE_WIDTH);
-      oldMeasureVF = measureVF;
+    
+      this.contextVF.closeGroup();
     }
+
+    this.loadInfoForVexFlow = (indexMeasure, deleteContext) => {
+      this.measures
+      .then(measures => {
+    
+        if(deleteContext) {
+          this.contextVF.svg.removeChild(this.groupMeasures);
+          this.groupMeasures = this.contextVF.openGroup();
+        }
+    
+        if(indexMeasure < 0) {
+          indexMeasure = 0;
+        }
+    
+    
+        if( (indexMeasure + 1) > measures.length) {
+            alert("There are no more measures");
+            document.getElementById("buttonNext").disabled= true;
+        } else {
+          document.getElementById("buttonNext").disabled= false;
+        }
+    
+        if(indexMeasure == 0) {
+          document.getElementById("buttonPrevious").disabled= true;
+        } else {
+          document.getElementById("buttonPrevious").disabled= false;
+        }
+    
+        this.showMeasures(measures, indexMeasure);
+      });
+    }
+}
+
+
+// function getAttributes(children) {       
+//    attributes.setData(getTagFromChildren("attributes", children));
+//    attributes.loadData();
+
+//    return attributes;
+// }
+// function getNotes(children) {
+  
+//   let notes = [];
+//   let arrayNotes = getTagFromChildren("note", children); 
+  
+//   if( !(Array.isArray(arrayNotes)) ) {
+//     notes[0] = new Note(arrayNotes);
+//     notes[0].loadData(); 
+//   } else {
+//     for(let i = 0; i < arrayNotes.length; i++) {    
+//       notes[i] = new Note(arrayNotes[i]);                
+//       notes[i].loadData();    
+//     }
+//   }
+
+//   return notes;
+// }
+// function loadNotesToVF(notes, divisions, clefVF) {
+//   let notesVF = [];
+//   let tiesVF = [];
+
+//   for(let i = 0; i < notes.length; i ++) {    //for each note
+//     let keyVF = [];
+//     let durationVF = null;
+//     let accidentalVF = null;
+//     let hasAccidental = false;      
+
+//     if(notes[i].getAccidental() != null) {
+//       accidentalVF = xml2vf.translateAccidental(notes[i].getAccidental());
+//       hasAccidental = true;
+//     }
+    
+//     if(xml2vf.translateType(notes[i].getType()) != TYPE_TAG_UNKNOWN) {    //In case note has a duration  modifier (dot for example)
+//       durationVF = xml2vf.translateType(notes[i].getType());
+//     } else {
+//       durationVF = xml2vf.translateDuration(divisions, notes[i].getDuration());
+//     }
+    
+//     if(notes[i].getIsRest()) {
+//       keyVF.push("b/4");        //specifies the vertical position of the rest
+//       durationVF += "r";   //specifies that the element it's a rest, and not a note
+//     } else {
+//       keyVF.push(xml2vf.translateKey(notes[i].getStep(), notes[i].getOctave(), accidentalVF));
+//     } 
+
+//     let staveNote = new VF.StaveNote({
+//       clef: clefVF,
+//       keys: keyVF,
+//       duration: durationVF
+//     });
+
+//     if(hasAccidental) {
+//       staveNote.addAccidental(0, new VF.Accidental(accidentalVF));
+//     }
+//     if(notes[i].getHasDot()) {
+//       staveNote.addDot(0);
+//     }
+
+//     if(notes[i].getTie() == "start") {
+//       tieGenerator.setStart(staveNote);
+//     }
+//     if(notes[i].getTie() == "stop") {      
+//       tieGenerator.setEnd(staveNote);
+//       tiesVF.push(tieGenerator.createTie());
+//     }    
+//     notesVF.push(staveNote);
+//   }
+
+//   return {
+//     notesVF: notesVF,
+//     tiesVF: tiesVF,
+//   }
+// }
+// function showMeasures(contextVF, measures, indexMeasure) {
+//   var children = null;
+//   var clefVF = null;
+//   var timeSignatureVF = null;
+//   var keySignatureVF = null;
+//   var oldMeasureVF = null;
+//   var measureVF = null;
+//   var tiesVF = null;
+//   var oneMoreTime = 0;
+  
+//   for(let i = indexMeasure; i < indexMeasure + N_MEASURES + oneMoreTime; i++) {    //for each measure
+//     var notesVF = [];
+//     var beamsVF = null;             
+    
+//     if(measures[i] != undefined) {    
+//       children = measures[i].children;
+
+//       if(getTagFromChildren("attributes", measures[i].children) != TAG_NOT_FOUND) {
+//         attributes = getAttributes(measures[i].children);       //Loads attributes or updates them if they are already initialized
+//       }
+    
+//       if(clefVF == null) {
+//         clefVF = xml2vf.translateClef(attributes.getSign(), attributes.getLine());
+//       }
+//       timeSignatureVF = xml2vf.translateTimeSignature(attributes.getBeats(), attributes.getBeatType());
+//       keySignatureVF = xml2vf.translateKeySignature(attributes.getFifths(), attributes.getMode());    
+      
+//       infoVF = loadNotesToVF(getNotes(children), attributes.getDivisions(), clefVF); /////////////////////////*
+//       notesVF = infoVF.notesVF;
+//       tiesVF = infoVF.tiesVF;   
+//       beamsVF = VF.Beam.generateBeams(notesVF);
+//     }
 
     
-    measureVF
-    .setContext(contextVF)
-    .draw();
+//     if(measureVF == null) {     //Add CLEF and TIMESIGNATURE
+//       measureVF = new VF.Stave(SVG_MARGIN_LEFT, 0, MEASURE_WIDTH);
+//       oldMeasureVF = measureVF;
+
+//       if(clefVF != null && timeSignatureVF != null && keySignatureVF != null)  {        
+//         measureVF
+//         .addClef(clefVF)
+//         .addTimeSignature(timeSignatureVF)
+//         .addModifier(new Vex.Flow.KeySignature(keySignatureVF));
+//       }
+
+//     } else {
+//       measureVF = new VF.Stave(oldMeasureVF.width + oldMeasureVF.x, 0, MEASURE_WIDTH);
+//       oldMeasureVF = measureVF;
+//     }
+
+    
+//     measureVF
+//     .setContext(contextVF)
+//     .draw();
+
+//     if(notesVF.length != 0) {
+//       //Draw
+//       VF.Formatter.FormatAndDraw(contextVF, measureVF, notesVF);
+//       beamsVF.forEach(beam => { beam.setContext(contextVF).draw() });
+//       tiesVF.forEach(tie => { tie.setContext(contextVF).draw() });
 
 
-    if(notesVF.length != 0) {
-      //Draw
-      VF.Formatter.FormatAndDraw(contextVF, measureVF, notesVF);
-      beamsVF.forEach(beam => { beam.setContext(contextVF).draw() });
-      tiesVF.forEach(tie => { tie.setContext(contextVF).draw() });
-    } else {      
-    }
-  }
+//       for( let j = 0; j < notesVF.length; j++) {
+//         elementInMeasure = notesVF[j].attrs.el;
+//         elementInMeasure.setAttribute("measure", i);
+//         elementInMeasure.setAttribute("note", j);
+//         elementInMeasure.addEventListener("click", (elementClicked) => {
+//           let element = elementClicked.path[3];
+//           let attrElement = element.attributes;
+//           let info = "";
 
-  contextVF.closeGroup();
+//           for(let i = 0; i < attrElement.length; i++) {
+//             if(attrElement[i].name == "measure") { info += attrElement[i].nodeValue + ", "; }
+//             if(attrElement[i].name == "note") { info += attrElement[i].nodeValue; }
+//           }  
+//           console.log("HOLA");    
+//           infoElementClicked = info;      
+//           document.getElementById("nav-bar").setAttribute("infoElementClicked", info);
+//         });
+//       }
+//     }
+//     if(i == (indexMeasure + N_MEASURES) - 1){   //Last iteration      
+//       if(!tieGenerator.getFinished()) {
+//         oneMoreTime = 1;
+//       }
+//     }
+//   }
 
-}
-function getTagFromChildren(tag, children) {
-  let elements = [];
-  for(let i = 0; i < children.length; i++) {
+//   contextVF.closeGroup();
+// }
+// function getTagFromChildren(tag, children) {
+//   let elements = [];
 
-    if(children[i].nodeName == tag) {      
-      elements.push(children[i]);
-    }
-  }
-  if(elements.length == 0) {  //Tag not found
-    elements = TAG_NOT_FOUND;
-  }
+//   for(let i = 0; i < children.length; i++) {
 
-  if(elements.length == 1) {    //Array to single element
-    elements = elements[0];
-  }
-  return elements;
-}
-function loadInfoForVexFlow (indexMeasure, deleteContext) {
-  measures
-  .then(measures => {
+//     if(children[i].nodeName == tag) {      
+//       elements.push(children[i]);
+//     }
+//   }
+//   if(elements.length == 0) {  //Tag not found
+//     elements = TAG_NOT_FOUND;
+//   }
 
-    if(deleteContext) {
-      contextVF.svg.removeChild(groupMeasures);
-      groupMeasures = contextVF.openGroup();
-    }
+//   if(elements.length == 1) {    //Array to single element
+//     elements = elements[0];
+//   }
+//   return elements;
+// }
+// function loadInfoForVexFlow (indexMeasure, deleteContext) {
+//   measures
+//   .then(measures => {
 
-    if(indexMeasure < 0) {
-      indexMeasure = 0;
-    }
+//     if(deleteContext) {
+//       contextVF.svg.removeChild(groupMeasures);
+//       groupMeasures = contextVF.openGroup();
+//     }
+
+//     if(indexMeasure < 0) {
+//       indexMeasure = 0;
+//     }
 
 
-    if( (indexMeasure + 1) > measures.length) {
-        alert("There are no more measures");
-        document.getElementById("buttonNext").disabled= true;
-    } else {
-      document.getElementById("buttonNext").disabled= false;
-    }
+//     if( (indexMeasure + 1) > measures.length) {
+//         alert("There are no more measures");
+//         document.getElementById("buttonNext").disabled= true;
+//     } else {
+//       document.getElementById("buttonNext").disabled= false;
+//     }
 
-    if(indexMeasure == 0) {
-      document.getElementById("buttonPrevious").disabled= true;
-    } else {
-      document.getElementById("buttonPrevious").disabled= false;
-    }
+//     if(indexMeasure == 0) {
+//       document.getElementById("buttonPrevious").disabled= true;
+//     } else {
+//       document.getElementById("buttonPrevious").disabled= false;
+//     }
 
-    showMeasures(contextVF, measures, indexMeasure);
-  });
-}
+//     showMeasures(contextVF, measures, indexMeasure);
+//   });
+// }
 
-//Initializing VexFlow
-VF = Vex.Flow;
-var div = document.getElementById("partitura");
-var renderer = new VF.Renderer(div, VF.Renderer.Backends.SVG);
-renderer.resize(SVG_WITDH, SVG_HEIGHT);
-var contextVF = renderer.getContext();
-var groupMeasures = contextVF.openGroup();
+// //Initializing VexFlow
+// VF = Vex.Flow;
+// var div = document.getElementById("partitura");
+// var renderer = new VF.Renderer(div, VF.Renderer.Backends.SVG);
+// renderer.resize(SVG_WITDH, SVG_HEIGHT);
+// var contextVF = renderer.getContext();
+// var groupMeasures = contextVF.openGroup();
 
-//Load XML
-var xml = new XMLManager();
-xml.fetchXML();
-var measures = xml.getMeasures();
+// //Load XML
+// var xml = new XMLManager();
+// xml.fetchXML();
+// var measures = xml.getMeasures();
 
-var xml2vf = new MusicXMLToVexFlow();
-var attributes = new Attributes();
-var tieGenerator = new TieGenerator();
+// //Initializations
+// var xml2vf = new MusicXMLToVexFlow();
+// var attributes = new Attributes();
+// var tieGenerator = new TieGenerator();
+// var infoElementClicked = null;
 
-loadInfoForVexFlow(0, false);
-//Load info for VexFlow
+// //loadXML FUNCTION MISSIG
+// loadInfoForVexFlow(0, false);
+
+
+
+
+var xmlParser = new XMLParser();
+xmlParser.loadXML();
+xmlParser.loadInfoForVexFlow(0, false);
+
 
 
