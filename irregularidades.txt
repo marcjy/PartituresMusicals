@@ -2,4 +2,4 @@ Final de partitura bugged
 
 Se pueden añadir accidentes a los silencios
 
-En situaciones conn notas con octavas muy altas o muy bajas, añadiendole algunas claves en concreto, la partitura puede verse cortada por que las notas se salen del area del SVG.
+En situaciones con notas con octavas muy altas o muy bajas, añadiendole algunas claves en concreto, la partitura puede verse cortada por que las notas se salen del area del SVG.

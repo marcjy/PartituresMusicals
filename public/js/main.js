@@ -3,14 +3,17 @@ const ONE_SECOND = 1000;
 const TAG_NOT_FOUND = "T404";
 const TYPE_TAG_UNKNOWN = "DT404";
 
+const FORWARD = "forward";
+const BACKWARD = "backward";
+
 const N_MEASURES = 5
 const NEXT_GROUP_MEASURES = "next";
 const PREVIOUS_GROUP_MEASURES = "previous";
 
 const SVG_WITDH = getBrowserWidth() - 75;      //For adapting svg size to the client
-const SVG_HEIGHT = 350;
+const SVG_HEIGHT = 225;
 const SVG_MARGIN_LEFT = 50;
-const MEASURE_HEIGHT = 125;
+const MEASURE_HEIGHT = 55;
 const MEASURE_WIDTH = SVG_WITDH/6 - 15;
 
 function getBrowserWidth() {      
@@ -50,8 +53,8 @@ function XMLManager() {
       setTimeout(resolve, ms);
     });
   }
-  this.fetchXML = () => {
-    fetch('/xml')
+  this.fetchXML = (fileXML) => {
+    fetch('/xml/' + fileXML)
       .then(res => res.text())
       .then(text => { this.xml = this.parser.parseFromString(text, "application/xml"); });
   }
@@ -141,7 +144,6 @@ function Note(data) {
 }
 //Class Attributes
 function Attributes() {
-  this.data = null;
 
   this.divisions = null;
   this.key = {
@@ -511,6 +513,7 @@ function AlphabeticToMusicXML() {
     return res;
   };
   this.translateKeySignature = (keySignature) => {
+    keySignature = keySignature.replace(/\s/g, "");
     var fifths = null;
     var mode = null;
 
@@ -653,32 +656,111 @@ function AlphabeticToMusicXML() {
       accidental: accidental.toLowerCase()
     }
     return res;
+  };
+  this.translateType = (type) => {
+    let newType = "";
+
+    switch(type) {
+      case "sixteenth":
+        newType = "16th";
+        break;
+      case "thirty-second":
+        newType = "32nd";
+        break;
+      case "sixty-fourth":
+        newType = "64th";
+        break;
+      default: 
+        newType = type;
+        break;      
+    }
+
+    let res = {
+      type: newType
+    };
+
+    return res;
+  };
+  this.translateRest = (rest) => {
+    let newRest = "";
+
+    words = rest.split(" ");
+    rest = words[0].toLowerCase();
+
+    switch(rest) {
+      case "sixteenth":
+        newRest = "16th";
+        break;
+      case "thirty-second":
+        newRest = "32nd";
+        break;
+      case "sixty-fourth":
+        newRest = "64th";
+        break;
+      default: 
+        newRest = rest;
+        break; 
+    }
+
+    let res = {
+      rest: "",
+      type: newRest
+    };
+
+    return res;
+  };
+  this.translateProlongation = (prolongation) => {
+    prolongation = prolongation.toLowerCase();
+
+    let newProlongation = null;
+    let res = {};
+
+    switch(prolongation) {
+      case "dotted":
+        newProlongation = "dot";
+        break;
+      case "fermata":
+        newProlongation = "fermata";
+        break;
+      default:
+        console.log("Error in translateProlongation. Prolongation unknown, was: " + prolongation);
+        break;
+    }
+
+    res[newProlongation] = "";
+
+    return res;
   }
 }
 
 //Class XMLParser
-function XMLParser() {
+function XMLParser() { 
   //Initializing VexFlow
-    VF = Vex.Flow;
+    VF = Vex.Flow;    
     var div = document.getElementById("score");
     var renderer = new VF.Renderer(div, VF.Renderer.Backends.SVG);
     renderer.resize(SVG_WITDH, SVG_HEIGHT);
     this.contextVF = renderer.getContext();
     this.groupMeasures = this.contextVF.openGroup();
-  
+
     this.xml = new XMLManager();
     this.xml2vf = new MusicXMLToVexFlow();
     this.attributes = new Attributes();
     this.tieGenerator = new TieGenerator();
+
+
     this.measures = null;
     this.infoElementClicked = null;
+    this.errorMeasure = null;
+    this.iterationsMeasure = 0;
 
-    this.loadXML = () => {
-      this.xml.fetchXML();
+    this.loadXML = (fileXML) => {
+      this.xml.fetchXML(fileXML);
       this.measures = this.xml.getMeasures();
     }
     this.getMeasures = () => this.measures;
     this.getAttributes = () => this.attributes;
+    this.getErrorMeasure = () => this.errorMeasure;
   
     this.loadAttributes = (children) => {
       this.attributes.setData(getTagFromChildren("attributes", children));
@@ -718,6 +800,7 @@ function XMLParser() {
         
         if(this.xml2vf.translateType(notes[i].getType()) != TYPE_TAG_UNKNOWN) {    //In case note has a duration  modifier (dot for example)
           durationVF = this.xml2vf.translateType(notes[i].getType());
+          
         } else {
           durationVF = this.xml2vf.translateDuration(divisions, notes[i].getDuration());
         }
@@ -750,7 +833,7 @@ function XMLParser() {
           tiesVF.push(this.tieGenerator.createTie());
         }    
         notesVF.push(staveNote);
-      }
+      }     
     
       return {
         notesVF: notesVF,
@@ -759,9 +842,14 @@ function XMLParser() {
     };
     this.showMeasures = (measures, indexMeasure) => {
       var children = null;
+
       var clefVF = null;
       var timeSignatureVF = null;
       var keySignatureVF = null;
+      var oldClefVF = null;
+      var oldTimeSignatureVF = null;
+      var oldKeySignatureVF = null;
+      
       var oldMeasureVF = null;
       var measureVF = null;
       var tiesVF = null;
@@ -781,7 +869,7 @@ function XMLParser() {
           clefVF = this.xml2vf.translateClef(this.attributes.getSign(), this.attributes.getLine());
           timeSignatureVF = this.xml2vf.translateTimeSignature(this.attributes.getBeats(), this.attributes.getBeatType());
           keySignatureVF = this.xml2vf.translateKeySignature(this.attributes.getFifths(), this.attributes.getMode());    
-          
+
           infoVF = this.loadNotesToVF(this.loadNotes(children), this.attributes.getDivisions(), clefVF);
           notesVF = infoVF.notesVF;
           tiesVF = infoVF.tiesVF;   
@@ -792,17 +880,47 @@ function XMLParser() {
         if(measureVF == null) {
           measureVF = new VF.Stave(SVG_MARGIN_LEFT, MEASURE_HEIGHT, MEASURE_WIDTH);
           oldMeasureVF = measureVF;
-    
-          if(clefVF != null && timeSignatureVF != null && keySignatureVF != null)  {    
-            measureVF
-            .addClef(clefVF)            
-            .addTimeSignature(timeSignatureVF)
-            .addModifier(new Vex.Flow.KeySignature(keySignatureVF));
+
+          if(clefVF != null) {
+            measureVF.addClef(clefVF);
+            oldClefVF = clefVF;
           }
+
+          if(timeSignatureVF != null) {
+            measureVF.addTimeSignature(timeSignatureVF);
+            oldTimeSignatureVF = timeSignatureVF;
+          }
+          if(keySignatureVF != null) {
+            measureVF.addModifier(new Vex.Flow.KeySignature(keySignatureVF));
+            oldKeySignatureVF = keySignatureVF;
+          }
+
+          // if(clefVF != null && timeSignatureVF != null && keySignatureVF != null)  {    
+          //   measureVF
+          //     .addClef(clefVF)            
+          //     .addTimeSignature(timeSignatureVF)
+          //     .addModifier(new Vex.Flow.KeySignature(keySignatureVF));
+          //   oldClefVF = clefVF;
+          //   oldTimeSignatureVF = timeSignatureVF;
+          //   oldKeySignatureVF = keySignatureVF; 
+          // }
     
         } else {
           measureVF = new VF.Stave(oldMeasureVF.width + oldMeasureVF.x, MEASURE_HEIGHT, MEASURE_WIDTH);
           oldMeasureVF = measureVF;
+
+          if(clefVF != null && clefVF != oldClefVF) {
+            measureVF.addClef(clefVF);
+            oldClefVF = clefVF;
+          }
+          if(timeSignatureVF != null && timeSignatureVF != oldTimeSignatureVF) {
+            measureVF.addTimeSignature(timeSignatureVF);
+            oldTimeSignatureVF = timeSignatureVF;
+          }
+          if(keySignatureVF != null && keySignatureVF != oldKeySignatureVF) {
+            measureVF.addModifier(new Vex.Flow.KeySignature(keySignatureVF));
+            oldKeySignatureVF = keySignatureVF;
+          }
         }
     
         //Draw measure
@@ -829,8 +947,7 @@ function XMLParser() {
               for(let i = 0; i < attrElement.length; i++) {
                 if(attrElement[i].name == "measure") { info += attrElement[i].nodeValue + ", "; }
                 if(attrElement[i].name == "note") { info += attrElement[i].nodeValue; }
-              }  
-              console.log("HOLA");    
+              }    
               this.infoElementClicked = info;      
               document.getElementById("nav-bar").setAttribute("infoElementClicked", info);
             });
@@ -875,17 +992,70 @@ function XMLParser() {
       });
     };
 
-    this.changeAttribute = (attribute) => {
+    this.createAttributesTag = () => {
+      let attributes = document.createElement('attributes');
 
+      let key = document.createElement('key');
+      let clef = document.createElement('clef');
+      let time = document.createElement('time');
+
+      let fifths = document.createElement('fifths');
+      let mode = document.createElement('mode');
+      let sign = document.createElement('sign');
+      let line = document.createElement('line');
+      let beats = document.createElement('beats');
+      let beatType = document.createElement('beat-type');
+
+      //DEFAULT VALUES
+      time.setAttribute('print-object', 'yes');
+      time.setAttribute('symbol', 'common');
+
+      fifths.innerHTML = "0";
+      mode.innerHTML = "major";
+      sign.innerHTML = "C";
+      line.innerHTML = "1";
+      beats.innerHTML = "4";
+      beatType.innerHTML = "4";
+
+      key.appendChild(fifths);
+      key.appendChild(mode);
+      clef.appendChild(sign);
+      clef.appendChild(line);
+      time.appendChild(beats);
+      time.appendChild(beatType); 
+      
+      attributes.appendChild(key);
+      attributes.appendChild(clef);
+      attributes.appendChild(time);
+
+      return attributes;
+    };
+
+    this.changeAttribute = (attribute, nMeasure) => {
       this.measures.then( (measures) => {  
         var index = 0;
         var keys = Object.keys(attribute);
 
         if(keys[1] == "beatType"){ keys[1] = "beat-type";}
 
-        for ( const key in attribute) {
+        var attributes = measures[nMeasure].getElementsByTagName('attributes')[0];
+
+        if(attributes == undefined) {
+          attributes  = this.createAttributesTag();
+          measures[nMeasure].appendChild(attributes);       
+        }
+        console.log(attributes);
+        
+        for ( const key in attribute) {          
           if (attribute.hasOwnProperty(key)) {              
-            element = measures[0].getElementsByTagName(keys[index]);
+            element = attributes.getElementsByTagName(keys[index]);
+
+            if(element.length < 1) {  //Tag didn't exist
+              var newElement = document.createElement(keys[index]);
+              newElement.innerHTML = attribute[key];
+              attributes.appendChild(newElement);
+            } 
+
             element[0].innerHTML = attribute[key];
             index++;
           }
@@ -893,35 +1063,180 @@ function XMLParser() {
       });
     };
     this.changeNote = (modification, nMeasure, nNote) => {
-      nNote = parseInt(nNote);
+      nNote = parseInt(nNote);      
 
       this.measures.then(measures => {
         var index = 0;
         var keys = Object.keys(modification);
-        var notes = measures[nMeasure].getElementsByTagName("note");
+        var notes = measures[nMeasure].getElementsByTagName("note");   
 
-        for ( const key in modification) {
+        var deleteRestTag = true;
+
+        for(let j = 0; j < keys.length; j++) {
+          if(keys[j] == "rest") { deleteRestTag = false; }
+        }
+
+        for (const key in modification) {
           if (modification.hasOwnProperty(key)) {            
             
-            element = notes[nNote].getElementsByTagName(keys[index]);
+            element = notes[nNote].getElementsByTagName(keys[index]);                                    
 
             if(element.length < 1) {  //Tag didn't exist
               var newElement = document.createElement(keys[index]);
-              newElement.innerHTML = modification[key];
-              notes[nNote].appendChild(newElement);
+              if(keys[index] != "rest" && keys[index] != "dot" && keys[index] != "fermata") {
+                newElement.innerHTML = modification[key];
+              }
+                notes[nNote].appendChild(newElement);
             } 
             else {
-            element[0].innerHTML = modification[key];
+              if(element[0].innerHTML == modification[key] && (keys[index] == "accidental" || keys[index] == "dot") ) {   //Delete element                             
+                element[0].parentNode.removeChild(element[0]);
+              }
+              else {                
+                element[0].innerHTML = modification[key];                
+              }
             }
             index++;
+
+            if(deleteRestTag) { 
+              restTag = notes[nNote].getElementsByTagName("rest");
+              if(restTag[0] != undefined) { restTag[0].parentNode.removeChild(restTag[0]); } 
+            }
           }
         }
       });
     };
+    this.checkMeasure = (nAffectedMeasure) => {      
+      this.measures.then(measures => {
+        nAffectedMeasure = parseInt(nAffectedMeasure);
 
+        var affectedMeasure = measures[nAffectedMeasure];
+
+        var tempoInMeasure = 0;
+        var maxTempo = 0;
+        var notes = affectedMeasure.getElementsByTagName("note");
+
+        var beatType = this.attributes.getBeatType();
+        var beats = this.attributes.getBeats();
+        var beatTypeToDuration = 0;
+        var error = false;
+
+        switch(beatType) {
+          case "2":
+            beatTypeToDuration = 2;
+            break;
+          case "4":
+            beatTypeToDuration = 1;
+            break;
+          case "8":
+            beatTypeToDuration = 1/2;
+            break;
+        }
+
+        maxTempo = beats * beatTypeToDuration;
+
+        var type = null;
+        var tempo = null;
+        var dot = null;
+        var fermata = null;        
+        
+        for(let i = 0; i < notes.length; i++) {  
+
+          let children = notes[i].children;
+          
+          
+          type = (getTagFromChildren("type", children)).innerHTML; 
+          dot = getTagFromChildren("dot", children);
+          fermata = getTagFromChildren("fermata", children); //TODO
+
+          
+          switch(type) {
+            case "whole":
+              tempo = 4;
+              break;
+            case "half":
+              tempo = 2;
+              break;
+            case "quarter":
+              tempo = 1;
+              break;
+            case "eighth":
+              tempo = 1/2;
+              break;
+            case "16th":
+              tempo = 1/4;
+              break;
+            case "32nd":
+              tempo = 1/8;
+              break;
+            case "64th":
+              tempo = 1/16;
+              break;
+            default:
+              tempo = null;
+              console.log("Error in checkMeasure. TYPE unknown, was: " + type);
+              break;
+          }
+                    
+          if(dot != TAG_NOT_FOUND) { tempo = tempo * 1.5; }
+
+          tempoInMeasure += tempo;
+        }
+
+        if(tempoInMeasure > maxTempo) {
+          error = true;
+          this.errorMeasure = {
+            title: "El compás número " + ((nAffectedMeasure - 5 * this.iterationsMeasure) + 1) + " tiene demasiados pulsos.",
+            target: maxTempo,
+            actual: tempoInMeasure
+          };
+        } else {
+          if(tempoInMeasure < maxTempo) {
+            error = true;
+            this.errorMeasure = {
+              title: "El compás número " + ((nAffectedMeasure - 5 * this.iterationsMeasure) + 1) + " necesita mas pulsos.",
+              target: maxTempo,
+              actual: tempoInMeasure
+            };
+          }
+
+          if(!error) {console.log("OL");
+           this.errorMeasure = null; }
+        }
+      });     
+    };
+
+    this.addTieAt = (type,nMeasure, nNote) => {
+      this.measures.then(measures =>{      
+        nNote = parseInt(nNote);
+
+        var measure = measures[nMeasure].getElementsByTagName("note");
+        var note = measure[nNote];
+
+        var notations = note.getElementsByTagName("notations");
+
+        if(notations != null) {
+          let elementNotations = document.createElement("notations");
+          let elementSlur = document.createElement("slur");
+
+          elementSlur.setAttribute("type", type);
+
+          elementNotations.appendChild(elementSlur);
+          note.appendChild(elementNotations);
+        } else {
+          alert("Esta nota ya cuenta con un elemento de ligadura/legato.");
+        }
+      });
+
+
+      
+
+    };
 }
 
 //img paths
+var imgLogo = "../img/logo.png";
+
 var imgNotas = [
   "../img/editor/redonda.png",
   "../img/editor/blanca.png",
@@ -958,11 +1273,88 @@ var imgMeasure = [
 
 
 //Components
+Vue.component("project-manager", {
+  data: function() {
+    return {
+      showProjectMenu: true,
+      showProjectCreator: false,
+      showProjects: false,
+    }
+  },
+  methods: {
+    addProject: function() {
+      this.showProjectMenu = false;
+      this.showProjectCreator = true;
+    },
+    selectProject: function(fileXML) {
+      this.$emit("project-selected", fileXML);
+    }
+  },
+  props: ["pProjects", "pImgLogo"],
+  template:
+  `<div id="projectManager">
+    <div id="home">
+      <a href='/home'><img v-bind:src="pImgLogo"></a>
+    </div>
+    <div class="centerContent">
+      <h1 id="headerProjects">Tus proyectos</h1>
+    </div>
+    <br>
+    <br>
+
+    <div class="centerContent">
+      <div class="container" v-if="showProjectMenu">
+        <div class="project" v-for="project in pProjects" v-on:click="selectProject(project.fileXML)">
+          <div id="projectName">
+            {{project.projectName}}
+          </div>
+          <div id="projectFiles">
+            <img v-bind:src="'uploaded/images/' + project.imgProject" onerror="this.style.display='none'"> <br><br>
+            {{project.fileXML}}
+          </div>
+        </div>
+        <div class="project" v-on:click="addProject()">
+          <div id="addProject">
+            +
+          </div>
+          <div id="textAddProject">
+            Crea un nuevo proyecto...
+          </div>
+        </div>
+      </div>
+
+      <div class="form" id="projectCreator" v-if="showProjectCreator">
+        <form action='/upload' method='post' enctype='multipart/form-data'>
+          <label for="projectName"><b>Nombre del Projecto</b></label>
+          <br>
+          <input type='text' placeholder='Introduce el nombre del proyecto nuevo' maxlength="25" name='projectName' required>
+          <br>
+          <br>
+
+          <label for="xmlFile"><b>Archivo MusicXML</b></label>
+          <br>
+          <input type='file' name='xmlFile' accept='.musicxml, .xml' required>
+          <br>
+          <br>
+
+          <label for="imgFile"><b>Imagen(es) de la partitura</b></label>
+          <br>
+          <input multiple type='file' name='imgFile' accept='image/png, image/jpeg' required>
+          <br>
+          <br>
+
+          <button v-on:click="this.showProjectCreator=false; this.showProjecMenu=true;" type='submit'>Crear Proyecto</button> 
+        </form>
+      </div>
+
+    </div>
+  </div>`
+  
+});
 Vue.component("nav-bar", {
   data: function() {
     return {
       displayOptions: {notes: true, duration: false, measure: false},
-
 
       optionNotes: {
         solmization: ["Do", "Re", "Mi", "Fa", "Sol", "La", "Si"],
@@ -970,11 +1362,11 @@ Vue.component("nav-bar", {
       },
       optionDuration: {
         solmization: ["Redonda", "Blanca", "Negra", "Corchea", "Semmicorchea", "Fusa", "Semifusa"],
-        alphabetic: ["Whole", "Half", "Quarter", "Eigth", "Sixteenth", "Thirty-second", "Sixty-fourth"],
+        alphabetic: ["Whole", "Half", "Quarter", "Eighth", "Sixteenth", "Thirty-second", "Sixty-fourth"],
       },
       optionRest: {
         solmization: ["Silencio de redonda", "Silencio de blanca", "Silencio de negra", "Silencio de corchea", "Silencio de semmicorchea", "Silencio de fusa", "Silencio de semifusa"],
-        alphabetic: ["Whole rest", "Half rest", "Quarter rest", "Eigth rest", "Sixteenth rest", "Thirty-second rest", "Sixty-fourth rest"],
+        alphabetic: ["Whole rest", "Half rest", "Quarter rest", "Eighth rest", "Sixteenth rest", "Thirty-second rest", "Sixty-fourth rest"],
       },
       optionProlongation: {
         solmization: ["Ligadura", "Puntillo", "Calderón"],
@@ -994,14 +1386,14 @@ Vue.component("nav-bar", {
       },
       musicalNotation: "solmization",
 
-      octave: null,
+      octave: "4",
 
       clef: null,
       timeSignature: null,
       keySignature: null,
     }
   },
-  props: ["pImgNotas", "pImgRest",  "pImgAccidentals", "pImgProlongation", "pImgMeasure"],
+  props: ["pImgNotas", "pImgRest",  "pImgAccidentals", "pImgProlongation", "pImgMeasure", "pDisableButtons"],
   watch: {
     clef: function() {
       this.$emit("change-clef", this.clef);
@@ -1011,7 +1403,7 @@ Vue.component("nav-bar", {
     },
     keySignature: function() {
       this.$emit("change-key-signature", this.keySignature);
-    }
+    },
   },
   methods: {
     resetDisplayOptions: function() {
@@ -1027,7 +1419,7 @@ Vue.component("nav-bar", {
     },
     changeMusicalNotation: function() {
       document.getElementById("arrowNotation").className = "arrowRotate";
-      
+
       setTimeout( () => {
         document.getElementById("arrowNotation").className = "arrow";
       }, 1100);
@@ -1048,30 +1440,28 @@ Vue.component("nav-bar", {
       this.$emit("change-accidental", accidental);
     },
     durationClicked: function(duration) {
-      //TODO
-      console.log(duration);
+      duration = duration.toLowerCase();
+      this.$emit("change-duration", duration);
     },
     restClicked: function(rest) {      
-      //TODO
-      console.log(rest);
+      this.$emit("change-rest", rest);
     },
     prolongationClicked: function(prolongation) {
-      //TODO
-      console.log(prolongation);
+      this.$emit("change-prolongation", prolongation);
     },
   },
   template:
   `<div id="nav-bar" ref="navBar">
     <div id="nav-bar-menu">
-      <button v-on:click="displayOption('notes')">Notas</button>
-      <button v-on:click="displayOption('duration')">Duración</button>
-      <button v-on:click="displayOption('measure')">Compás</button>
+      <button v-bind:disabled="pDisableButtons" v-on:click="displayOption('notes')">Notas</button>
+      <button v-bind:disabled="pDisableButtons" v-on:click="displayOption('duration')">Duración</button>
+      <button v-bind:disabled="pDisableButtons" v-on:click="displayOption('measure')">Compás</button>
     </div>
 
     <div id="nav-bar-options">
       <button title="Cambiar Not. Musical" v-on:click=changeMusicalNotation()><div id="arrowNotation" class="arrow">&#8635;</div></button>
       <div class="divider"></div>
-      <div class="container" id="nav-bar-options-notes" v-if="displayOptions['notes']">
+      <div class="containerNavBar" id="nav-bar-options-notes" v-if="displayOptions['notes']">
         <button v-for="(note, i) in optionNotes[musicalNotation]" v-on:click="noteClicked(optionNotes['alphabetic'][i])">{{note}}</button>
         <div class="dividerBlurred"></div>
         <label id="labelOctave" title="[0-9]" for="selectOctave">Octave:</label>
@@ -1080,10 +1470,10 @@ Vue.component("nav-bar", {
         <button v-for="(accidental, i) in optionAccidental[musicalNotation]" v-bind:title="accidental" v-on:click="accidentalClicked(optionAccidental['alphabetic'][i])"><img v-bind:src="pImgAccidentals[i]"></button>
       </div>
 
-      <div class="container" id="nav-bar-options-duration" v-if="displayOptions['duration']">
-        <button v-for="(duration, i) in optionDuration[musicalNotation]" v-bind:title="duration" v-on:click="durationClicked(optionDuration['alphabetic'][i])"><img v-bind:src="pImgNotas[i]"></button>
+      <div class="containerNavBar" id="nav-bar-options-duration" v-if="displayOptions['duration']">
+        <button v-bind:disabled="pDisableButtons" v-for="(duration, i) in optionDuration[musicalNotation]" v-bind:title="duration" v-on:click="durationClicked(optionDuration['alphabetic'][i])"><img v-bind:src="pImgNotas[i]"></button>
         <div class="divider"></div>
-        <button v-for="(rest, i) in optionRest[musicalNotation]" v-bind:title="rest" v-on:click="restClicked(optionRest['alphabetic'][i])"><img v-bind:src="pImgRest[i]"></button>
+        <button v-bind:disabled="pDisableButtons" v-for="(rest, i) in optionRest[musicalNotation]" v-bind:title="rest" v-on:click="restClicked(optionRest['alphabetic'][i])"><img v-bind:src="pImgRest[i]"></button>
         
         <div class="divider"></div>
         <div id="prolongation">
@@ -1092,7 +1482,7 @@ Vue.component("nav-bar", {
 
       </div>
 
-      <div class="container" id="nav-bar-options-measure" v-if="displayOptions['measure']">
+      <div class="containerNavBar" id="nav-bar-options-measure" v-if="displayOptions['measure']">
         <label for="selectClef"><img v-bind:src="pImgMeasure[0]"></label>
         <select v-model="clef" id="selectClef">
           <option v-for="(clef, i) in optionClef[musicalNotation]" v-bind:value="optionClef['alphabetic'][i]">{{clef}}</option>
@@ -1177,18 +1567,18 @@ Vue.component("img-score", {
     },
     template:
     `<div id="img-score">
-        <button class="back" v-on:click="decrementIndex()" v-bind:disabled="deactivatePrevious">&#8249;</button>
+      <div >
         <input type="checkbox" id="zoomCheck">
         <label for="zoomCheck">
         <img v-bind:src="actualImage">
         </label>
-        <button class="next" v-on:click="incrementIndex()" v-bind:disabled="deactivateNext">&#8250;</button>
+        <div>
+          <button class="back" v-on:click="decrementIndex()" v-bind:disabled="deactivatePrevious">&#8249;</button>
+          <button class="next" v-on:click="incrementIndex()" v-bind:disabled="deactivateNext">&#8250;</button>
+        </div>
+      </div>
     </div>`
-});
-Vue.component("score", {
-  template:
-  `<div id="score">
-  </div>`
+
 });
 Vue.component("measure-navigator", {
   data: function() {
@@ -1199,27 +1589,55 @@ Vue.component("measure-navigator", {
   methods: {
       loadPreviousGroup: function() {
           this.indexMeasures -= N_MEASURES;
-          this.$emit("load-group-measures",this.indexMeasures);
+
+          infoMeasure = {
+            indexMeasures: this.indexMeasures,
+            direction: BACKWARD
+          };
+
+          this.$emit("load-group-measures", infoMeasure);
       },
       loadNextGroup: function() {
           this.indexMeasures += N_MEASURES;
-          this.$emit("load-group-measures",this.indexMeasures);      
+
+          infoMeasure = {
+            indexMeasures: this.indexMeasures,
+            direction: FORWARD
+          };
+
+          this.$emit("load-group-measures", infoMeasure);      
       }
   },
   template:
   `<div id="measure-navigator">
+    <div class="centerContent">
       <div id="buttonsNavigator">
-          <button id="buttonPrevious" v-on:click="loadPreviousGroup()"><span> PREVIOUS </span></button>
-          <button id="buttonNext" v-on:click="loadNextGroup()"><span> NEXT </span></button>
+          <button id="buttonPrevious" v-on:click="loadPreviousGroup()"><span> ANTERIOR </span></button>
+          <button id="buttonNext" v-on:click="loadNextGroup()"><span> SIGUIENTE </span></button>
       </div>
+    </div>
+  </div>`
+})
+Vue.component("errors-score", {
+  props: ["pError"],
+  template:
+  `<div id="errors-score">
+    <div id="windowError">
+      <div>{{pError.title}}</div>
+      <div>
+        <p><b>Actual: </b>{{pError.actual}}</p>
+        <p><b>Objectivo: </b> {{pError.target}}</p>
+      </div>
+    </div>
   </div>`
 })
 
 
 //Vue instance
 new Vue({
-  el: "#editor",
+  el: "#main",
   data: {
+    imgLogo: imgLogo,
     imgDuracion: imgNotas,
     imgRest: imgRest,
     imgAccidentals: imgAccidentals,
@@ -1229,70 +1647,234 @@ new Vue({
     xmlParser: null,
     measures: null,
     alphToMusicXML: null,
-  },
-  mounted: function() {
-    this.alphToMusicXML = new AlphabeticToMusicXML();
-    this.xmlParser = new XMLParser();
-    this.xmlParser.loadXML();
-    this.xmlParser.loadInfoForVexFlow(0, false);
 
-    this.measures = this.xmlParser.getMeasures();
+    projects: null,
+    showProjectManager: true,
+
+    showNavBar: false,
+    showImgScore: false,
+    showScore: false,
+    showMeasureNavigator: false,
+    showErrorScore: false,
+
+    tieStarted: false,
+    disableButtons: false,
+
+    errorScore: null,
+  },
+  created: function() {
+    fetch('/getProjects')
+    .then(response => response.json())
+    .then(aJson => {this.projects = aJson;});
   },
   methods: {
-    loadGroupMeasures: function(indexMeasure) {
-      this.xmlParser.loadInfoForVexFlow(indexMeasure, true);
+    resetShowComponents: function() {
+      this.showProjectManager = false;
+
+      this.showNavBar = false;
+      this.showImgScore = false;
+      this.showScore = false;
+      this.showMeasureNavigator = false;
+    },
+    showScoreComponents: function() {
+      this.showNavBar = true;
+      this.showImgScore = true;
+      this.showScore = true;
+      this.showMeasureNavigator = true;
+    },
+    loadProject: function(fileXML) {
+      this.resetShowComponents();
+      this.showScoreComponents();
+
+      this.alphToMusicXML = new AlphabeticToMusicXML();
+      this.xmlParser = new XMLParser();
+      this.xmlParser.loadXML(fileXML);
+      this.xmlParser.loadInfoForVexFlow(0, false);
+  
+      this.measures = this.xmlParser.getMeasures();
+    },
+
+    loadGroupMeasures: function(infoMeasure) {  
+      if(typeof(infoMeasure) == "object") { 
+
+
+        if(infoMeasure.direction == FORWARD) { this.xmlParser.iterationsMeasure++; }
+        else { this.xmlParser.iterationsMeasure--; }       
+
+        this.xmlParser.loadInfoForVexFlow(infoMeasure.indexMeasures, true); 
+      }
+      else { this.xmlParser.loadInfoForVexFlow(infoMeasure, true); }
+    },
+    getInfoElementClicked: function() {
+      var infoNote = document.getElementById("nav-bar").getAttribute("infoelementclicked");
+
+      if(infoNote == null) { return null; }
+ 
+      infoNote = infoNote.split(",");
+      var nMeasure = infoNote[0];
+      var nNote = infoNote[1];
+
+      return {
+        nMeasure: nMeasure,
+        nNote: nNote
+      }
     },
 
     changeClef: function(clef) {
-      var newClef = this.alphToMusicXML.translateClef(clef);
-      this.xmlParser.changeAttribute(newClef);
+      var infoElementClicked = this.getInfoElementClicked();
+      var nMeasure = infoElementClicked.nMeasure;
 
-      this.loadGroupMeasures(0);
+      var newClef = this.alphToMusicXML.translateClef(clef);
+      this.xmlParser.changeAttribute(newClef, nMeasure);
+
+      var indexMeasure = nMeasure / N_MEASURES;
+      indexMeasure = Math.floor(indexMeasure);
+      this.loadGroupMeasures(indexMeasure * N_MEASURES);
     },
     changeTimeSignature: function(timeSignature) {
-      var newTimeSignature = this.alphToMusicXML.translateTimeSignature(timeSignature);
-      this.xmlParser.changeAttribute(newTimeSignature);
+      var infoElementClicked = this.getInfoElementClicked();
+      var nMeasure = infoElementClicked.nMeasure;
 
-      
-      this.loadGroupMeasures(0);
+      var newTimeSignature = this.alphToMusicXML.translateTimeSignature(timeSignature);
+      this.xmlParser.changeAttribute(newTimeSignature, nMeasure);
+
+      var indexMeasure = nMeasure / N_MEASURES;
+      indexMeasure = Math.floor(indexMeasure);
+      this.loadGroupMeasures(indexMeasure * N_MEASURES);
     },
     changeKeySignature: function(keySignature) {
+      var infoElementClicked = this.getInfoElementClicked();
+      var nMeasure = infoElementClicked.nMeasure;
+
       var newKeySignature = this.alphToMusicXML.translateKeySignature(keySignature);
-      this.xmlParser.changeAttribute(newKeySignature);
-
-      
-      this.loadGroupMeasures(0);
-    },
-
-    changeAccidental: function(accidental) {      
-      var infoNote = document.getElementById("nav-bar").getAttribute("infoelementclicked");
-      
-      infoNote = infoNote.split(",");
-      var nMeasure = infoNote[0];
-      var nNote = infoNote[1];
-      
-      var newAccident = this.alphToMusicXML.translateAccidental(accidental);
-      this.xmlParser.changeNote(newAccident, nMeasure, nNote);
-
+      this.xmlParser.changeAttribute(newKeySignature, nMeasure);
 
       var indexMeasure = nMeasure / N_MEASURES;
       indexMeasure = Math.floor(indexMeasure);
       this.loadGroupMeasures(indexMeasure * N_MEASURES);
+    },
+    changeAccidental: function(accidental) {   
+      var infoElementClicked = this.getInfoElementClicked();
+
+      if(infoElementClicked != null) {
+      
+        var nMeasure = infoElementClicked.nMeasure;
+        var nNote = infoElementClicked.nNote;
+        
+        var newAccident = this.alphToMusicXML.translateAccidental(accidental);
+        this.xmlParser.changeNote(newAccident, nMeasure, nNote);
+
+
+        var indexMeasure = nMeasure / N_MEASURES;
+        indexMeasure = Math.floor(indexMeasure);
+        this.loadGroupMeasures(indexMeasure * N_MEASURES);
+      }
     },
     changeNote: function(note) {      
-      var infoNote = document.getElementById("nav-bar").getAttribute("infoelementclicked");
+      var infoElementClicked = this.getInfoElementClicked();   
       
-      infoNote = infoNote.split(",");
-      var nMeasure = infoNote[0];
-      var nNote = infoNote[1];
-      
-      this.xmlParser.changeNote(note, nMeasure, nNote);
+      if(infoElementClicked != null) { 
+        
+        var nMeasure = infoElementClicked.nMeasure;
+        var nNote = infoElementClicked.nNote;
+       
+        this.xmlParser.changeNote(note, nMeasure, nNote);
 
 
-      var indexMeasure = nMeasure / N_MEASURES;
-      indexMeasure = Math.floor(indexMeasure);
-      this.loadGroupMeasures(indexMeasure * N_MEASURES);
-    }
+        var indexMeasure = nMeasure / N_MEASURES;
+        indexMeasure = Math.floor(indexMeasure);
+        this.loadGroupMeasures(indexMeasure * N_MEASURES);
+      }
+    },
+    changeType: function(type) {
+      var infoElementClicked = this.getInfoElementClicked();   
+      
+      if(infoElementClicked != null) {
+        var nMeasure = infoElementClicked.nMeasure;
+        var nNote = infoElementClicked.nNote;
+
+        var newType = this.alphToMusicXML.translateType(type);  
+            
+        this.xmlParser.changeNote(newType, nMeasure, nNote);
+
+        var indexMeasure = nMeasure / N_MEASURES;
+        indexMeasure = Math.floor(indexMeasure);
+        this.loadGroupMeasures(indexMeasure * N_MEASURES);
+
+        this.checkForErrors(nMeasure);
+      }
+    },
+    changeRest: function(rest) {
+      var infoElementClicked = this.getInfoElementClicked();   
+      
+      if(infoElementClicked != null) {
+        var nMeasure = infoElementClicked.nMeasure;
+        var nNote = infoElementClicked.nNote;
+
+        var newRest = this.alphToMusicXML.translateRest(rest);
+
+        this.xmlParser.changeNote(newRest, nMeasure, nNote);
+
+        var indexMeasure = nMeasure / N_MEASURES;
+        indexMeasure = Math.floor(indexMeasure);
+        this.loadGroupMeasures(indexMeasure * N_MEASURES);
+
+        this.checkForErrors(nMeasure);
+      }
+
+    },
+    changeProlongation: function(prolongation) {
+      var infoElementClicked = this.getInfoElementClicked();   
+      
+      if(infoElementClicked != null) {
+        var nMeasure = infoElementClicked.nMeasure;
+        var nNote = infoElementClicked.nNote;
+
+        if(prolongation == "Tie") {
+
+          if(!this.tieStarted) {
+            this.tieStarted = true;
+            this.xmlParser.addTieAt("start", nMeasure, nNote);
+
+            alert("Algunas funciones de la aplicación quedaran desactivadas hasta que finalices la ligadura con otra nota.")
+
+            this.showMeasureNavigator = false;
+            this.disableButtons = true;
+          } else {
+            this.tieStarted = false;
+            this.xmlParser.addTieAt("stop", nMeasure, nNote);
+
+            this.showMeasureNavigator = true;
+            this.disableButtons = false;
+          }
+
+        } else {
+          var newProlongation = this.alphToMusicXML.translateProlongation(prolongation);
+
+          this.xmlParser.changeNote(newProlongation, nMeasure, nNote);
+
+          this.checkForErrors(nMeasure)
+        }
+
+        var indexMeasure = nMeasure / N_MEASURES;
+        indexMeasure = Math.floor(indexMeasure);
+        this.loadGroupMeasures(indexMeasure * N_MEASURES);
+
+      }
+
+    },
+
+    checkForErrors: function(nMeasure) {
+      this.xmlParser.checkMeasure(nMeasure);
+
+      setTimeout(() =>{
+        this.errorScore = this.xmlParser.getErrorMeasure();
+  
+        if(this.errorScore == null) { this.showErrorScore = false; }
+        else { this.showErrorScore = true;}
+        
+      }, 300);
+    },
 
   },
   watch: {
@@ -1300,26 +1882,46 @@ new Vue({
   },
   template:
   `<div id="main">
-    <nav-bar 
+    <a id="logOut" href="/logout">LogOut</a>
+
+    <project-manager v-if="showProjectManager"
+      v-bind:pImgLogo="imgLogo"
+      v-bind:pProjects="projects"
+      v-on:project-selected="loadProject($event)">
+    </project-manager>
+
+    <div id="home" v-if="showNavBar">
+      <a href='/home'><img v-bind:src="imgLogo"></a>
+    </div>
+
+    <nav-bar v-if="showNavBar"
       v-bind:pImgNotas="imgDuracion" 
       v-bind:pImgRest="imgRest"
       v-bind:pImgAccidentals="imgAccidentals"
       v-bind:pImgProlongation="imgProlongations"
       v-bind:pImgMeasure="imgMeasure"
+      v-bind:pDisableButtons="disableButtons"
       
       v-on:change-clef="changeClef($event)"
       v-on:change-time-signature="changeTimeSignature($event)"
       v-on:change-key-signature="changeKeySignature($event)"
-      
+
       v-on:change-note="changeNote($event)"
-      v-on:change-accidental="changeAccidental($event)">
+      v-on:change-accidental="changeAccidental($event)"
+      v-on:change-duration="changeType($event)"
+      v-on:change-rest="changeRest($event)"
+      v-on:change-prolongation="changeProlongation($event)">
+      
     </nav-bar>
 
-    <img-score></img-score>
+    <img-score v-if="showImgScore"></img-score>
 
-    <score></score>
+    <errors-score v-if="showErrorScore"
+      v-bind:pError="errorScore">
+    </errors-score>
 
-    <measure-navigator
+
+    <measure-navigator v-if="showMeasureNavigator"
       v-on:load-group-measures="loadGroupMeasures($event)">
     </measure-navigator>
 

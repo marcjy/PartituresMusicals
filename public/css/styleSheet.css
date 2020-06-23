@@ -2,19 +2,165 @@
 
 body {
   font-family: "Raleway", sans-serif;
+  background-image: url("../img/background.jpeg");
+  background-size: cover;
 }
 
-/*------------------------Header---------------------------*/
-#header {
+a {
+  color: white;
+  font-weight: bold;
+  font-size: 30px;
+  text-decoration: none;
+}
+
+/*---------------------------------------------------------*/
+.container {
+  margin-top: 50px;
   text-align: center;
+  display: grid;
+  grid-template-columns: 500px 500px 500px;
+  grid-template-rows: repeat(auto-fill, 400px);
+  grid-row-gap: .5em;
+  grid-column-gap: 1em;
+}
+/*---------------------------------------------------------*/
+
+/*--------------------------Login--------------------------*/
+
+.form {
+  text-align: center;
+  color: white;
+}
+
+.form input {
+  width: 400px;
+  padding: 12px 20px;
+  margin: 8px 0;
+  display: inline-block;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+  color: rgb(39, 39, 39);;
+}
+
+.form button {
+  background-color: rgb(49, 49, 49);
+  color: white;
+  padding: 14px 20px;
+  margin: 8px 0;
+  border: none;
+  cursor: pointer;
+  width: 500px;
+}
+.form button:hover {
+  background-color: rgb(39, 39, 39);
+}
+.form button:disabled {
+  background-color: #acacac;
+}
+
+.form img {
+  margin: 25px;
+}
+.form input {
+  background-color: white;
+}
+
+#errorSF { 
+  color: white; 
+  text-align: center;
+  margin: 150px;
+  font-size: 25px;
+}
+
+
+#logOut{
+  text-decoration: none;
+  margin: 10px 30px 5px 5px;
+  padding: 25px;
+  float: right;
+  font-size: 20px;
+  border-radius: 25px;
+  background-color: rgb(49, 49, 49);
+  color: white;
+}
+#logOut:hover {
+  background-color: rgb(39, 39, 39);
+}
+
+
+/*---------------------------------------------------------*/
+
+/*------------------ProjectManager-------------------------*/
+#home {
+  float: left;
+}
+#home img{
+  width: 100px;
+}
+
+#headerProjects{
+  width: 50%;
+  font-weight: 100;
+  font-size: 50px;
+  border-bottom: solid 5px;
+  border-top: solid 5px;
+  color: ivory;
+  padding: 5px;
+}
+
+.project {
+  color: white;
+  background-color: rgb(49, 49, 49);
+  padding: 20px;
+  border: solid 5px;
+  border-style: solid;
+  border-radius: 5px;
+}
+.project:hover {
+  background-color: rgb(39, 39, 39);
 
 }
+#projectFiles img {
+  width: 200px;
+  height: 200px;
+}
+
+#projectName {
+  padding: 15px;
+  font-size: 25px;
+  font-weight: bold;
+}
+.centerContent {
+  display: flex;
+  justify-content: center;
+}
+#projectManager {
+  text-align: center;
+}
+
+#addProject {
+  font-size: 250px;
+}
+#textAddProject {
+  font-size: 30px;
+  font-style: italic;
+}
+/*---------------------------------------------------------*/
 
 /*---------------------------------------------------------*/
 
 /*---------------------nav-bar-----------------------------*/
+#nav-bar {
+  margin-top: 20px;
+}
+
+#nav-bar button:disabled {
+  background-color: #f75252;
+}
 
 #nav-bar-menu {
+  width: 85%;
+  margin-left: 105px;
   background-color: rgb(49, 49, 49);
   border-radius: 5px;
 }
@@ -30,11 +176,12 @@ body {
   cursor: pointer;
 }
 #nav-bar-menu button:hover {
-background-color: black;
+background-color: rgb(39, 39, 39);
 }
 
 #nav-bar-options {
-  margin-left: 50px;
+  width: 83.35%;
+  margin-left: 135px;
   background-color: #858585;
   border-radius: 5px;
   display: flex;
@@ -100,18 +247,12 @@ background-color: black;
   -moz-appearance: none;
 }
 
-
-
-.container {
+.containerNavBar {
   display: flex;
   text-align: center;
 }
 .option {
   cursor: pointer;
-}
-
-.arrow{
-
 }
 
 .arrowRotate{
@@ -155,26 +296,32 @@ input[type=number] {
 input[type=checkbox] {
   display: none;
 }
+
 #img-score {
+  margin-top: 50px;
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: 50px;
 }
 
 #img-score img {
-  margin-top: 35px;
+  display: block;
+  margin: 0 auto;
+
   transition: transform 0.25s ease;
   cursor: zoom-in;
 
-  width: 800px;
-  height: 300px;
+  width: 700px;
+  height: 200px;
+
+  border: solid #313131 10px;
+  border-radius: 5px;
 
 }
-#img-score button {
-  margin:20px;
-}
+
 
 input[type=checkbox]:checked ~ label > img {
-  transform: scale(2.3);
+  transform: scale(2.7);
+  border: none;
   cursor: zoom-out;
 }
 /*---------------------------------------------------------*/
@@ -194,12 +341,13 @@ input[type=checkbox]:checked ~ label > img {
   background-color: #acacac;
 }
 .back:hover {
-  background-color: black;
+  background-color: rgb(39, 39, 39);;
 }
 .next:hover {
-  background-color: black;
+  background-color: rgb(39, 39, 39);;
 }
 .back {
+  margin-right: 750px;
   border-radius: 50%;
   background-color: rgb(49, 49, 49);
   color: white;
@@ -211,15 +359,44 @@ input[type=checkbox]:checked ~ label > img {
 }
 /*---------------------------------------------------------*/
 
+/*--------------------ErrorScore---------------------------*/
+#errors-score {
+  text-align: center;
+}
+#windowError {
+  display: inline-block;
+  text-align: center;
+  padding: 15px 15px 0px 15px;
+  background: white;
+  margin: 5px;
+  border: solid #313131 3px;
+  border-radius: 5px;
+}
+/*---------------------------------------------------------*/
+
+
 /*-----------------------Partitura-------------------------*/
 #partitura {
   margin-bottom: 50px;
+}
+
+#score {
+  background-color: white;
+  border-radius: 25px;
 }
 /*---------------------------------------------------------*/
 
 /*--------------------Measure Navigator--------------------*/
 #buttonsNavigator {
   text-align: center;
+
+  position: fixed;
+  height: 60px;
+  bottom: 50px;
+  left: 0px;
+  right: 0px;
+  margin-bottom: 0px;
+  color: white;
 }
 #buttonsNavigator button {
   width: 210px;
@@ -243,6 +420,23 @@ input[type=checkbox]:checked ~ label > img {
 }
 
 #buttonsNavigator button:hover {
-  background-color: black
+  background-color: rgb(39, 39, 39);
 }
+/*---------------------------------------------------------*/
+
+
+
+/*--------------------------Footer-------------------------*/
+#footer {
+  text-align: center;
+  color: white;
+  position: fixed;
+  height: 50px;
+  background-color: rgb(49, 49, 49);
+  bottom: 0px;
+  left: 0px;
+  right: 0px;
+  margin-bottom: 0px;
+}
+
 /*---------------------------------------------------------*/

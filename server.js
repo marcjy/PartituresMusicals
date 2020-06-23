@@ -1,6 +1,9 @@
 const express = require('express');
 const fileUpload = require('express-fileupload');
+const session = require('express-session');
 const fs = require('fs');
+const mysql = require('mysql');
+const bcrypt = require('bcrypt');
 const path = require('path');
 const app = express();
 const port = 3000;
@@ -10,50 +13,150 @@ const XML_FOLDER = __dirname + '/public/uploaded/xml/';
 
 app.use(fileUpload());
 app.use(express.static(path.join(__dirname, 'public')));
+
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(session({
+	secret: 'secret',
+	resave: true,
+	saveUninitialized: true
+}));
+
+//BBDD
+function DataBase() {
+  this.isConnected = false;
+  this.conn = null;
+  this.idUser = null;
+  this.createConnection = () => {
+    this.conn = mysql.createConnection({
+      host: "localhost",
+      user: "admin",
+      password: "admin",
+      database: "scoreFlow"
+    });
+  }
+  this.connectToDataBase = () => {
+    this.conn.connect( (err) => {
+      if(err) throw err;
+      this.isConnected = true;
+      console.log("Connected successfully to the data base.");
+    });
+  }
+
+  this.insertNewUser = (name, password ) => {
+    if(!this.isConnected) throw "Not connected to the data base.";
+
+    let sql = 'INSERT INTO User (userName, password) VALUES (?)';
+    let escaped = [name, password];
+
+    this.conn.query(sql, [escaped], (err, result) => {
+      if(err) throw err;
+      console.log("Query successful.\n " + result);
+    });
+  }
+  this.insertNewProject = (userName, projectName, xmlFile, imgFile, imgProject) => {
+    if(!this.isConnected) throw "Not connected to the data base.";
+
+    let sql = 'INSERT INTO project (userName, projectName, fileXML, fileIMG, imgProject) VALUES (?)';
+    let escaped = [userName, projectName, xmlFile, imgFile, imgProject];
+
+    this.conn.query(sql, [escaped], (err, result) => {
+      if(err) throw err;
+      console.log("Query successful.\n " + result);
+    });
+
+  }
+  this.selectFromTable = (elements, table, whereOption, callBack) => {
+    let stringElements = "";
+
+    if(!typeof(elements) == "string") {
+      for ( let i = 0; i < elements.length; i++) {
+        stringElements += elements[i];
+
+        if(i != (elements.length - 1)) { stringElements += ", "; }
+      }
+    }
+    else {
+      stringElements = elements;
+    }
+
+    let sql = "SELECT " + stringElements + " FROM " + table;
+
+    if(whereOption.length > 0) {
+      sql += " WHERE " + whereOption + ";";
+    }
+    else {
+      sql += " ;";
+    }
+
+    this.conn.query(sql, (err, result) => {
+      if(err) throw err;
+      callBack(result);
+
+    });
+  }
+}
+
+dataBase = new DataBase();
+dataBase.createConnection();
+dataBase.connectToDataBase();
 
 //Routing
 app.get('/', (req, res) => {
-  res.sendFile(__dirname + "/public/uploadForm.html");
+  res.sendFile(__dirname + "/public/logIn.html");
 });
-app.post('/upload', (req, res) => {
+app.post('/upload', (req, res) => { 
+  let xmlFile = req.files.xmlFile;
+  let imgFile = req.files.imgFile;
+  let images = "";
+  let imgProject = null;
 
-  if (!req.files || Object.keys(req.files).length === 0) {
-    res.status(400).send('No se ha subido ningun archivo.');
-  }
-  else {
-    let musicxml = req.files.musicxml;
-    let imgPartitura = req.files.imgPartitura;
+  xmlFile.mv(XML_FOLDER + xmlFile.name , (err) => {
+    if (err) { return res.status(500).send(err); }
+  });
 
-    musicxml.mv(XML_FOLDER + musicxml.name , (err) => {
-      if (err) {        
-        return res.status(500).send(err);
-      }
-    });
+  if(Array.isArray(imgFile)) {
+    imgProject = imgFile[0].name;
 
-    for(let i = 0; i < imgPartitura.length; i++) {
-      imgPartitura[i].mv(IMAGES_FOLDER + imgPartitura[i].name, err => {
-        if(err) {
-          return res.status(500).send(err);
-        }
+    for(let i = 0; i < imgFile.length; i++) {
+      images += imgFile[i].name;
+
+      if(i != (imgFile.length - 1)) { images += ", "; }
+
+      imgFile[i].mv(IMAGES_FOLDER + imgFile[i].name, err => {
+        if(err) { return res.status(500).send(err); }
       });
     }
   }
+  else {
+    imgProject = imgFile.name;
+    images = imgFile.name;
 
-/* 
-    imgPartitura.mv(__dirname + '/public/uploaded/1.jpg', (err) => {
-      if (err) {
-        return res.status(500).send(err);
-      }
+    imgFile.mv(IMAGES_FOLDER + imgFile.name, err => {
+      if(err) { return res.status(500).send(err); }
     });
-     */
-    res.sendFile(__dirname + "/index.html");
+  }
+
+  dataBase.selectFromTable("*", "project", "project.projectName = \'" + req.body.projectName + "\'", (queryResult) => {
+    if(queryResult.length > 0) {     
+      res.sendFile(__dirname + "/public/projectAlreadyExists.html"); 
+    }
+    else {
+      dataBase.insertNewProject(req.session.username, req.body.projectName, xmlFile.name, images, imgProject);
+      res.redirect('/home');
+    }
+  });
+  
+
+
 });
-app.get('/xml', (req, res) => {
+app.get('/xml/:fileXML', (req, res) => {  
+  let file = req.params.fileXML;
   res.set('Content-Type', 'text/xml');
-  res.sendFile(XML_FOLDER + "BNC-M1683_13_Motet_Laudate_Dominum-P_Llinas (1-3) - 1 Tiple 1.xml");
+  res.sendFile(XML_FOLDER + file);
 });
 app.get('/images', (req, res) => {
+  //TODO ELIMINAR?
   let images = "";
 
   fs.readdir(IMAGES_FOLDER, (err, files) => {
@@ -69,6 +172,78 @@ app.get('/images', (req, res) => {
   });
   
 });
+app.get('/getProjects', (req, res) => {
 
+  let userName = req.session.username;
+
+  dataBase.selectFromTable("*", "Project", "project.userName = \'" + userName + "\'", (queryResult) => {
+    if(queryResult.length > 0) {
+      res.json(queryResult);
+    } 
+    else {
+      res.json([]);
+    }
+  });
+});
+
+app.get('/home', (req, res) => {
+
+  if(req.session.loggedin) { res.sendFile(__dirname + "/index.html"); }
+  else { res.redirect('/'); }
+})
+
+app.post('/signin', (req, res) => {
+  var userName = req.body.userName;
+  var password = req.body.password;
+
+  dataBase.selectFromTable("*", "User", "User.userName = \'" + userName + "\'", (queryResult) => {
+    if(queryResult.length > 0) {
+      res.sendFile(__dirname + "/public/signInError.html");
+    }
+    else {      
+      bcrypt.hash(password, 10, (err, encrypted) => {
+        if(err) throw err;
+        dataBase.insertNewUser(userName, encrypted);
+      });
+
+      req.session.loggedin = true;
+      req.session.username = userName;
+      console.log("SignIn successful");
+      res.redirect('/home');
+    }
+  });
+
+});
+app.post('/login', (req, res) => {
+  var userName = req.body.userName;
+  var password = req.body.password;
+
+  dataBase.selectFromTable("password", "User", "User.userName = \'" + userName + "\'", (queryResult) =>{  
+
+    if(queryResult.length > 0) {
+      let passwordEncrypted = queryResult[0].password;
+      bcrypt.compare(password, passwordEncrypted, (err, result) => {  
+        if(err) throw err;
+
+        if(result) {          
+          req.session.loggedin = true;
+          req.session.username = userName;
+          console.log("LogIn successful");
+          res.redirect('/home');
+        }
+        else {
+          res.sendFile(__dirname + "/public/logInError.html");
+        }
+      });
+    }
+    else {
+      res.sendFile(__dirname + "/public/logInError.html");
+    }
+  });
+});
+app.get('/logout', (req, res) =>{
+  req.session.destroy();
+  res.redirect('/');
+});
 //Creating server
 app.listen(port, () => console.log(`Listening in port:  ${port}!`))

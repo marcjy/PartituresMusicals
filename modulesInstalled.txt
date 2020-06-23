@@ -3,4 +3,10 @@ express
 
 express-fileupload
 
+express-session
+
+bcrypt
+
 VexFlow
+
+mysql
