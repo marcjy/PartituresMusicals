@@ -875,54 +875,23 @@ function XMLParser() {
           tiesVF = infoVF.tiesVF;   
           beamsVF = VF.Beam.generateBeams(notesVF);
         }
-    
-        
+
         if(measureVF == null) {
           measureVF = new VF.Stave(SVG_MARGIN_LEFT, MEASURE_HEIGHT, MEASURE_WIDTH);
           oldMeasureVF = measureVF;
-
-          if(clefVF != null) {
-            measureVF.addClef(clefVF);
-            oldClefVF = clefVF;
+    
+          if(clefVF != null && timeSignatureVF != null && keySignatureVF != null)  {    
+            measureVF
+            .addClef(clefVF)            
+            .addTimeSignature(timeSignatureVF)
+            .addModifier(new Vex.Flow.KeySignature(keySignatureVF));
           }
-
-          if(timeSignatureVF != null) {
-            measureVF.addTimeSignature(timeSignatureVF);
-            oldTimeSignatureVF = timeSignatureVF;
-          }
-          if(keySignatureVF != null) {
-            measureVF.addModifier(new Vex.Flow.KeySignature(keySignatureVF));
-            oldKeySignatureVF = keySignatureVF;
-          }
-
-          // if(clefVF != null && timeSignatureVF != null && keySignatureVF != null)  {    
-          //   measureVF
-          //     .addClef(clefVF)            
-          //     .addTimeSignature(timeSignatureVF)
-          //     .addModifier(new Vex.Flow.KeySignature(keySignatureVF));
-          //   oldClefVF = clefVF;
-          //   oldTimeSignatureVF = timeSignatureVF;
-          //   oldKeySignatureVF = keySignatureVF; 
-          // }
     
         } else {
           measureVF = new VF.Stave(oldMeasureVF.width + oldMeasureVF.x, MEASURE_HEIGHT, MEASURE_WIDTH);
           oldMeasureVF = measureVF;
-
-          if(clefVF != null && clefVF != oldClefVF) {
-            measureVF.addClef(clefVF);
-            oldClefVF = clefVF;
-          }
-          if(timeSignatureVF != null && timeSignatureVF != oldTimeSignatureVF) {
-            measureVF.addTimeSignature(timeSignatureVF);
-            oldTimeSignatureVF = timeSignatureVF;
-          }
-          if(keySignatureVF != null && keySignatureVF != oldKeySignatureVF) {
-            measureVF.addModifier(new Vex.Flow.KeySignature(keySignatureVF));
-            oldKeySignatureVF = keySignatureVF;
-          }
         }
-    
+        
         //Draw measure
         measureVF
         .setContext(this.contextVF)
@@ -1031,20 +1000,19 @@ function XMLParser() {
       return attributes;
     };
 
-    this.changeAttribute = (attribute, nMeasure) => {
+    this.changeAttribute = (attribute) => {
       this.measures.then( (measures) => {  
         var index = 0;
         var keys = Object.keys(attribute);
 
         if(keys[1] == "beatType"){ keys[1] = "beat-type";}
 
-        var attributes = measures[nMeasure].getElementsByTagName('attributes')[0];
+        var attributes = measures[0].getElementsByTagName('attributes')[0];
 
         if(attributes == undefined) {
           attributes  = this.createAttributesTag();
-          measures[nMeasure].appendChild(attributes);       
+          measures[0].appendChild(attributes);       
         }
-        console.log(attributes);
         
         for ( const key in attribute) {          
           if (attribute.hasOwnProperty(key)) {              
@@ -1721,37 +1689,32 @@ new Vue({
     },
 
     changeClef: function(clef) {
-      var infoElementClicked = this.getInfoElementClicked();
-      var nMeasure = infoElementClicked.nMeasure;
+
 
       var newClef = this.alphToMusicXML.translateClef(clef);
-      this.xmlParser.changeAttribute(newClef, nMeasure);
+      this.xmlParser.changeAttribute(newClef);
 
-      var indexMeasure = nMeasure / N_MEASURES;
-      indexMeasure = Math.floor(indexMeasure);
-      this.loadGroupMeasures(indexMeasure * N_MEASURES);
+      let indexMeasure = this.xmlParser.iterationsMeasure * N_MEASURES;
+      console.log(indexMeasure);
+      
+      this.loadGroupMeasures(indexMeasure);
     },
     changeTimeSignature: function(timeSignature) {
-      var infoElementClicked = this.getInfoElementClicked();
-      var nMeasure = infoElementClicked.nMeasure;
 
       var newTimeSignature = this.alphToMusicXML.translateTimeSignature(timeSignature);
-      this.xmlParser.changeAttribute(newTimeSignature, nMeasure);
+      this.xmlParser.changeAttribute(newTimeSignature);
 
-      var indexMeasure = nMeasure / N_MEASURES;
-      indexMeasure = Math.floor(indexMeasure);
-      this.loadGroupMeasures(indexMeasure * N_MEASURES);
+      let indexMeasure = this.xmlParser.iterationsMeasure * N_MEASURES;
+      this.loadGroupMeasures(indexMeasure);
     },
     changeKeySignature: function(keySignature) {
-      var infoElementClicked = this.getInfoElementClicked();
-      var nMeasure = infoElementClicked.nMeasure;
+
 
       var newKeySignature = this.alphToMusicXML.translateKeySignature(keySignature);
-      this.xmlParser.changeAttribute(newKeySignature, nMeasure);
+      this.xmlParser.changeAttribute(newKeySignature);
 
-      var indexMeasure = nMeasure / N_MEASURES;
-      indexMeasure = Math.floor(indexMeasure);
-      this.loadGroupMeasures(indexMeasure * N_MEASURES);
+      let indexMeasure = this.xmlParser.iterationsMeasure * N_MEASURES;
+      this.loadGroupMeasures(indexMeasure);
     },
     changeAccidental: function(accidental) {   
       var infoElementClicked = this.getInfoElementClicked();
