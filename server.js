@@ -155,25 +155,20 @@ app.get('/xml/:fileXML', (req, res) => {
   res.set('Content-Type', 'text/xml');
   res.sendFile(XML_FOLDER + file);
 });
-app.get('/images', (req, res) => {
-  //TODO ELIMINAR?
-  let images = "";
+app.get('/images/:projectId', (req, res) => {
+  let projectId = req.params.projectId; 
 
-  fs.readdir(IMAGES_FOLDER, (err, files) => {
-    if(err) {
-      return res.status(500).send(err);
+  dataBase.selectFromTable("fileIMG", "project", "project.projectId = \'" + projectId + "\'", queryResult => {
+    console.log(queryResult);
+    
+    if(queryResult.length > 0) {      
+      res.json(queryResult);
     } else {
-      for(let i = 0; i < files.length - 1; i++) {
-        images += "/uploaded/images/" + files[i] + ", ";
-      }
-      images += "/uploaded/images/" + files[files.length-1];
-    }    
-    res.send(images);
-  });
-  
+      res.json([]);
+    }
+  });  
 });
 app.get('/getProjects', (req, res) => {
-
   let userName = req.session.username;
 
   dataBase.selectFromTable("*", "Project", "project.userName = \'" + userName + "\'", (queryResult) => {

@@ -721,12 +721,6 @@ function AlphabeticToMusicXML() {
 
     return res;
   };
-  this.translateAccidental = (accidental) => {
-    var res = {
-      accidental: accidental.toLowerCase()
-    }
-    return res;
-  };
   this.translateType = (type) => {
     let newType = "";
 
@@ -779,26 +773,6 @@ function AlphabeticToMusicXML() {
 
     return res;
   };
-  this.translateProlongation = (prolongation) => {    
-    let newProlongation = null;
-    let res = {};
-
-    switch(prolongation) {
-      case "dotted":
-        newProlongation = "dot";
-        break;
-      case "fermata":
-        newProlongation = "fermata";
-        break;
-      default:
-        console.log("Error in translateProlongation. Prolongation unknown, was: " + prolongation);
-        break;
-    }
-
-    res[newProlongation] = "";
-
-    return res;
-  }
 }
 
 //Class XMLParser
@@ -1117,67 +1091,147 @@ function XMLParser() {
         }
       });
     };
-    this.changeNote = (modification, nMeasure, nNote) => {
-      nNote = parseInt(nNote);      
+
+    this.changeAccidental = (accidental, nMeasure, nNote) => {
+      nNote = parseInt(nNote);   
+
+      this.measures.then( measures => {
+        let notes = measures[nMeasure].getElementsByTagName("note");
+        let note = notes[nNote];
+        let accidentalType = accidental.accidental;
+        let accidentalElement  = note.getElementsByTagName("accidental");
+
+        if( (note.getElementsByTagName("rest")).length == 0) { //Note selected its not a rest
+          if( accidentalElement.length < 1) { //Note doesnt have an accidental
+
+            let newAccidentalElement = document.createElement("accidental");
+            newAccidentalElement.innerHTML = accidentalType;
+
+            note.appendChild(newAccidentalElement);          
+          } else {
+            if( accidentalElement[0].innerHTML != accidentalType) { accidentalElement[0].innerHTML = accidentalType; } 
+            else { accidentalElement[0].parentNode.removeChild(accidentalElement[0]); }
+          }   
+        } else { alert("No se pueden añadir accidentes a los silencios.")}  
+      });
+    };
+    this.changePitch = (pitch, nMeasure, nNote) => {
+      nNote = parseInt(nNote);
 
       this.measures.then(measures => {
-        var index = 0;
-        var keys = Object.keys(modification);
+        let notes = measures[nMeasure].getElementsByTagName("note");
+        let note = notes[nNote];
+        let pitchElement = note.getElementsByTagName("pitch");
+
+        if( (note.getElementsByTagName("rest")).length == 0) {
+          if(pitchElement.length < 1) {
+            let newPitchElement = document.createElement("pitch");
+            let stepElement = document.createElement("step");
+            let octaveElement = document.createElement("octave");
+
+            stepElement.innerHTML = pitch.step;
+            octaveElement.innerHTML = pitch.octave;
+
+            newPitchElement.appendChild(stepElement);
+            newPitchElement.appendChild(octaveElement);
+
+            note.appendChild(newPitchElement);
+          } else {
+            note.getElementsByTagName("step")[0].innerHTML = pitch.step;
+            note.getElementsByTagName("octave")[0].innerHTML = pitch.octave;
+          }
+        } else { alert("Los silencios no pueden cambiarse de posición verticalmente.")}
+
         
-        var notes = measures[nMeasure].getElementsByTagName("note");   
+      });
+    };
+    this.changeType = (type, nMeasure, nNote) => {
+      nNote = parseInt(nNote);
+      this.measures.then(measures => {
 
-        var deleteRestTag = true;
+        let notes = measures[nMeasure].getElementsByTagName("note");
+        let note = notes[nNote];
 
-        for(let j = 0; j < keys.length; j++) {
-          if(keys[j] == "rest") { deleteRestTag = false; }
-        }
+        console.log(note.innerHTML);
+        
 
-        for (const key in modification) {
-          if (modification.hasOwnProperty(key)) {            
-            
-            element = notes[nNote].getElementsByTagName(keys[index]);                                    
+        note.getElementsByTagName("type")[0].innerHTML = type.type;
 
-            if(element.length < 1) {  //Tag didn't exist
+        if(note.getElementsByTagName("rest").length > 0) {
+          let restTag = note.getElementsByTagName("rest")[0];
+          restTag.parentNode.removeChild(restTag);
 
-              if(keys[index] == "fermata") {
-                var barline = notes[nNote].getElementsByTagName("barline");
-                var newFermata = document.createElement("fermata");
+          if(note.getElementsByTagName("pitch").length == 0) {
+          let newPitchElement = document.createElement("pitch");
+          let stepElement = document.createElement("step");
+          let octaveElement = document.createElement("octave");
 
-                if(barline.length < 1) { 
-                  var newBarline = document.createElement("barline"); 
-                  newBarline.appendChild(newFermata);
-                  notes[nNote].appendChild(newBarline);
-                } else {
-                  barline[0].appendChild(newFermata);
-                  notes[nNote].appendChild(barline[0]);
-                }
-              } else {
+          stepElement.innerHTML = "G";
+          octaveElement.innerHTML = "4";
 
-              var newElement = document.createElement(keys[index]);
-              if(keys[index] != "rest" && keys[index] != "dot" && keys[index] != "fermata") {
-                newElement.innerHTML = modification[key];
-              }
-                notes[nNote].appendChild(newElement);
-            }
-            } 
-            else {
-              if(element[0].innerHTML == modification[key] && (keys[index] == "accidental" || keys[index] == "dot" || keys[index] == "fermata") ) {   //Delete element                             
-                element[0].parentNode.removeChild(element[0]);
-              }
-              else {                
-                element[0].innerHTML = modification[key];                
-              }
-            }
-            index++;
+          newPitchElement.appendChild(stepElement);
+          newPitchElement.appendChild(octaveElement);
 
-            if(deleteRestTag) { 
-              restTag = notes[nNote].getElementsByTagName("rest");
-              if(restTag[0] != undefined) { restTag[0].parentNode.removeChild(restTag[0]); } 
-            }
+          note.appendChild(newPitchElement);
           }
         }
       });
     };
+    this.changeRest = (rest, nMeasure, nNote) => {
+      nNote = parseInt(nNote);
+
+      this.measures.then(measures => {
+
+        let notes = measures[nMeasure].getElementsByTagName("note");
+        let note = notes[nNote];
+        let restElement = document.createElement("rest");
+        
+        note.appendChild(restElement);
+        note.getElementsByTagName("type")[0].innerHTML = rest.type;
+
+
+
+
+      });
+    };
+    this.changeProlongation = (prolongation, nMeasure, nNote) => {
+      nNote = parseInt(nNote);
+
+      this.measures.then( measures => {
+        let notes = measures[nMeasure].getElementsByTagName("note");
+        let note = notes[nNote];
+
+        switch(prolongation) {
+          case "dotted":
+            if(note.getElementsByTagName("dot").length == 0) {
+              let dotElement = document.createElement("dot");
+              note.appendChild(dotElement);
+            } else {
+              let dotElement = note.getElementsByTagName("dot");
+              dotElement[0].parentNode.removeChild(dotElement[0]);
+            }
+
+            break;
+          case "fermata":
+            if(note.getElementsByTagName("barline").length == 0) {
+              let barlineElement = document.createElement("barline");
+              let fermataElement = document.createElement("fermata");
+
+              barlineElement.appendChild(fermataElement);
+              note.appendChild(barlineElement);
+            } else {
+              let barlineElement = note.getElementsByTagName("barline");
+              barlineElement[0].parentNode.removeChild(barlineElement[0]);
+            }
+
+            break;
+          default:
+            console.log("Error in changeProlongation. Prolongation unknown, was " + prolongation);
+            break;
+        }
+      });
+    }
+
     this.checkMeasure = (nAffectedMeasure) => {      
       this.measures.then(measures => {
         nAffectedMeasure = parseInt(nAffectedMeasure);
@@ -1359,8 +1413,12 @@ Vue.component("project-manager", {
       this.showProjectMenu = false;
       this.showProjectCreator = true;
     },
-    selectProject: function(fileXML) {
-      this.$emit("project-selected", fileXML);
+    selectProject: function(project) {
+      let projectInfo = {
+        fileXML: project.fileXML,
+        projectId: project.projectId, 
+      }
+      this.$emit("project-selected", projectInfo);
     }
   },
   props: ["pProjects", "pImgLogo"],
@@ -1377,7 +1435,7 @@ Vue.component("project-manager", {
 
     <div class="centerContent">
       <div class="container" v-if="showProjectMenu">
-        <div class="project" v-for="project in pProjects" v-on:click="selectProject(project.fileXML)">
+        <div class="project" v-for="project in pProjects" v-on:click="selectProject(project)">
           <div id="projectName">
             {{project.projectName}}
           </div>
@@ -1509,7 +1567,7 @@ Vue.component("nav-bar", {
           step: note,
           octave: this.octave
         }
-        if(this.mode == "Editar notas") { this.$emit("change-note", newNote); }
+        if(this.mode == "Editar notas") { this.$emit("change-pitch", newNote); }
         else { this.$emit("add-note", newNote); }
       }
     },
@@ -1609,13 +1667,21 @@ Vue.component("img-score", {
         deactivateNext: false,
       }
     },
-    created: function() {        
-        fetch('/images')
-            .then(response => response.text())
-            .then(text => {
-                let fileNames = text.split(',');
-                fileNames.forEach(fileName => this.images.push(fileName));
-            });         
+    mounted: function() {              
+        fetch('/images/' + this.pProjectId)
+            .then(response => response.json())
+            .then(aJson => {
+              let files = aJson[0].fileIMG;
+              files = files.split(',');
+
+              for(let i = 0; i < files.length; i++) {
+                files[i] = files[i].replace(/\s/g, '');
+              }
+
+              files.forEach(fileName => { this.images.push("/uploaded/images/" + fileName) });  
+              
+              if(this.images.length == 1) {this.deactivateNext = true;}  
+            });                      
     },
     methods: {
         incrementIndex: function() {            
@@ -1654,6 +1720,7 @@ Vue.component("img-score", {
             this.actualImage = this.images[0];
         }
     },
+    props: ["pProjectId"],
     template:
     `<div id="img-score">
       <div >
@@ -1738,6 +1805,7 @@ new Vue({
     alphToMusicXML: null,
 
     projects: null,
+    projectId: null,
     showProjectManager: true,
 
     showNavBar: false,
@@ -1771,13 +1839,15 @@ new Vue({
       this.showScore = true;
       this.showMeasureNavigator = true;
     },
-    loadProject: function(fileXML) {
+    loadProject: function(infoProject) {
       this.resetShowComponents();
       this.showScoreComponents();
 
+      this.projectName = infoProject.projectId;
+
       this.alphToMusicXML = new AlphabeticToMusicXML();
       this.xmlParser = new XMLParser();
-      this.xmlParser.loadXML(fileXML);
+      this.xmlParser.loadXML(infoProject.fileXML);
       this.xmlParser.loadInfoForVexFlow(0, false);
   
       this.measures = this.xmlParser.getMeasures();
@@ -1837,7 +1907,8 @@ new Vue({
       let indexMeasure = this.xmlParser.iterationsMeasure * N_MEASURES;
       this.loadGroupMeasures(indexMeasure);
     },
-    changeAccidental: function(accidental) {   
+    changeAccidental: function(accidental) {  
+      accidental = accidental.toLowerCase(); 
       var infoElementClicked = this.getInfoElementClicked();
 
       if(infoElementClicked != null) {
@@ -1845,25 +1916,22 @@ new Vue({
         var nMeasure = infoElementClicked.nMeasure;
         var nNote = infoElementClicked.nNote;
         
-        var newAccident = this.alphToMusicXML.translateAccidental(accidental);
-        this.xmlParser.changeNote(newAccident, nMeasure, nNote);
-
+        this.xmlParser.changeAccidental(accidental, nMeasure, nNote);
 
         var indexMeasure = nMeasure / N_MEASURES;
         indexMeasure = Math.floor(indexMeasure);
         this.loadGroupMeasures(indexMeasure * N_MEASURES);
       }
     },
-    changeNote: function(note) {      
+    changePitch: function(note) {      
       var infoElementClicked = this.getInfoElementClicked();   
       
       if(infoElementClicked != null) { 
         
         var nMeasure = infoElementClicked.nMeasure;
-        var nNote = infoElementClicked.nNote;
-       
-        this.xmlParser.changeNote(note, nMeasure, nNote);
+        var nNote = infoElementClicked.nNote; 
 
+        this.xmlParser.changePitch(note, nMeasure, nNote);
 
         var indexMeasure = nMeasure / N_MEASURES;
         indexMeasure = Math.floor(indexMeasure);
@@ -1879,7 +1947,7 @@ new Vue({
 
         var newType = this.alphToMusicXML.translateType(type);  
             
-        this.xmlParser.changeNote(newType, nMeasure, nNote);
+        this.xmlParser.changeType(newType, nMeasure, nNote);
 
         var indexMeasure = nMeasure / N_MEASURES;
         indexMeasure = Math.floor(indexMeasure);
@@ -1897,7 +1965,7 @@ new Vue({
 
         var newRest = this.alphToMusicXML.translateRest(rest);
 
-        this.xmlParser.changeNote(newRest, nMeasure, nNote);
+        this.xmlParser.changeRest(newRest, nMeasure, nNote);
 
         var indexMeasure = nMeasure / N_MEASURES;
         indexMeasure = Math.floor(indexMeasure);
@@ -1929,17 +1997,14 @@ new Vue({
             this.showMeasureNavigator = true;
           }
 
-        } else {
-          var newProlongation = this.alphToMusicXML.translateProlongation(prolongation);         
-          this.xmlParser.changeNote(newProlongation, nMeasure, nNote);
-
+        } else {   
+          this.xmlParser.changeProlongation(prolongation, nMeasure, nNote);
           this.checkForErrors(nMeasure);
         }
 
         var indexMeasure = nMeasure / N_MEASURES;
         indexMeasure = Math.floor(indexMeasure);
         this.loadGroupMeasures(indexMeasure * N_MEASURES);
-
       }
     },
 
@@ -1993,9 +2058,6 @@ new Vue({
     },
 
   },
-  watch: {
-
-  },
   template:
   `<div id="main">
     <a id="logOut" href="/logout">LogOut</a>
@@ -2022,7 +2084,7 @@ new Vue({
       v-on:change-time-signature="changeTimeSignature($event)"
       v-on:change-key-signature="changeKeySignature($event)"
 
-      v-on:change-note="changeNote($event)"
+      v-on:change-pitch="changePitch($event)"
       v-on:change-accidental="changeAccidental($event)"
       v-on:change-duration="changeType($event)"
       v-on:change-rest="changeRest($event)"
@@ -2033,7 +2095,9 @@ new Vue({
       
     </nav-bar>
 
-    <img-score v-if="showImgScore"></img-score>
+    <img-score v-if="showImgScore"
+      v-bind:pProjectId="projectName">
+      </img-score>
 
     <errors-score v-if="showErrorScore"
       v-bind:pError="errorScore">
