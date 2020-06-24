@@ -6,6 +6,16 @@ En situaciones con notas con octavas muy altas o muy bajas, añadiendole algunas 
 
 Las ligaduras no pueden formarse en mitad de otra ligadura.
 
+Los nombres de proyecto se comparten con todos los usuarios. Es decir, el nombre del proyecto debe ser unico en TODA la base de datos.
+
+Al usar la acción de vovler hacia atras en la web, el usuario puede volver al formulario de incio de sesion aunque ya esté loggeado.
+
+La aplicación no detecta errores que ya estuvieran en el archivo XML inicialmente.
+
 Los errores de un compás se "pierden" si se edita otro compás.
 
+No se pueden añadir atributos en mitad de la partitura. Un unico tag de atributos
+
 IMAGENES SE CARGAN TODAS
+
+Dot + Fermata ?

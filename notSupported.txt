@@ -16,4 +16,8 @@ THEORETICAL KEYS:
 	-G#
 	-e#
 
-Cambio de atributos en mitad de la partitura.
+Editar proyectos (nombre, imagenes, archivo).
+
+Eliminar cuenta de usuario.
+
+Editar cuenta de usuario (user, psw).

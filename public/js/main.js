@@ -16,6 +16,43 @@ const SVG_MARGIN_LEFT = 50;
 const MEASURE_HEIGHT = 55;
 const MEASURE_WIDTH = SVG_WITDH/6 - 15;
 
+//img paths
+var imgLogo = "../img/logo.png";
+
+var imgNotas = [
+  "../img/editor/redonda.png",
+  "../img/editor/blanca.png",
+  "../img/editor/negra.png",
+  "../img/editor/corchea.png",
+  "../img/editor/semicorchea.png",
+  "../img/editor/fusa.png",
+  "../img/editor/semifusa.png",
+];
+var imgRest = [
+  "../img/editor/sRedonda.png",
+  "../img/editor/sBlanca.png",
+  "../img/editor/sNegra.png",
+  "../img/editor/sCorchea.png",
+  "../img/editor/sSemicorchea.png",
+  "../img/editor/sFusa.png",
+"../img/editor/sSemifusa.png",
+];
+var imgAccidentals = [
+  "../img/editor/sostenido.png",
+  "../img/editor/bemol.png",
+  "../img/editor/becuadro.png"
+];
+var imgProlongations = [
+  "../img/editor/ligadura.png",
+  "../img/editor/puntillo.png",
+  "../img/editor/calderon.png",
+];
+var imgMeasure = [
+  "../img/editor/clef.png",
+  "../img/editor/timeSignature.png",
+  "../img/editor/armadura.png",
+];
+
 function getBrowserWidth() {      
   return Math.max(
     document.body.scrollWidth,
@@ -42,6 +79,13 @@ function getTagFromChildren(tag, children) {
     elements = elements[0];
   }
   return elements;
+}
+function arrayMove(array, from, to) {
+  console.log(typeof(array));
+  
+  var element = array[from];
+  array.splice(from, 1);
+  array.splice(to, 0, element);
 }
 //Class XMLManager
 function XMLManager() {
@@ -76,6 +120,9 @@ function Note(data) {
   this.pitch = {
     step: null,
     octave: null,
+  };
+  this.articulations = {
+    fermata: null,
   };
   this.tie = null;
 
@@ -128,7 +175,14 @@ function Note(data) {
     if(this.isRest == false) {     //If isRest == true  -> There is no pitch tag
       this.pitch.step = (getTagFromChildren("step", getTagFromChildren("pitch", noteChildren).children)).innerHTML;
       this.pitch.octave = (getTagFromChildren("octave", getTagFromChildren("pitch", noteChildren).children)).innerHTML;
-    }     
+    }
+    if(getTagFromChildren("barline", noteChildren) != TAG_NOT_FOUND) {   //BarLine tag is optional 
+      let barLineChildren = getTagFromChildren("barline", noteChildren).children;
+
+      if(getTagFromChildren("fermata", barLineChildren) != TAG_NOT_FOUND) {
+        this.articulations.fermata = true;
+      }
+    }
   }  
 
   this.getData = () => this.data;
@@ -141,6 +195,7 @@ function Note(data) {
   this.getStep = () => this.pitch.step;
   this.getOctave = () => this.pitch.octave;
   this.getTie = () => this.tie;
+  this.getArticulation = () => this.articulations;
 }
 //Class Attributes
 function Attributes() {
@@ -266,10 +321,10 @@ function MusicXMLToVexFlow() {
     }
 
     return clef;
-  }
+  };
   this.translateTimeSignature = (beats, beatsType) => {
     return beats + "/" + beatsType;
-  }
+  };
   this.translateKeySignature = (fifths, mode) => {
     let keySignature = "";
     
@@ -340,7 +395,7 @@ function MusicXMLToVexFlow() {
     }
 
     return keySignature;
-  }
+  };
   this.translateAccidental = (acc) => {
     let accidental = "";
 
@@ -365,7 +420,7 @@ function MusicXMLToVexFlow() {
     }
 
     return accidental;
-  }
+  };
   this.translateType = (type) => {
     let duration = "";
 
@@ -398,7 +453,7 @@ function MusicXMLToVexFlow() {
         duration = TYPE_TAG_UNKNOWN;
     }
     return duration;
-  }
+  };
   this.translateDuration = (divisions, duration) => {
     let res = duration / divisions;    
     let realDuration = "";
@@ -438,7 +493,7 @@ function MusicXMLToVexFlow() {
     }
 
     return realDuration;
-  }
+  };
   this.translateKey = (step, octave, accidental) => {
     
     let result = "";
@@ -450,7 +505,22 @@ function MusicXMLToVexFlow() {
     result += "/" + octave;
 
     return result;
+  };
+  this.translateArticulation = (articulation) => {
+    let newArticulation = null;
+
+    switch(articulation) {
+      case "fermata":
+        newArticulation = 'a@u';
+        break;
+      default: 
+        console.log("Error in translateArticulation. Articulation unknown, was " + articulation);
+        break;
+    }
+
+    return newArticulation;
   }
+
 }
 //Class AlphabeticToMusicXML
 function AlphabeticToMusicXML() {
@@ -709,9 +779,7 @@ function AlphabeticToMusicXML() {
 
     return res;
   };
-  this.translateProlongation = (prolongation) => {
-    prolongation = prolongation.toLowerCase();
-
+  this.translateProlongation = (prolongation) => {    
     let newProlongation = null;
     let res = {};
 
@@ -817,6 +885,24 @@ function XMLParser() {
           keys: keyVF,
           duration: durationVF
         });
+
+          var articulations = notes[i].getArticulation();          
+          var articulation = null;
+          var articulationsKeys = Object.keys(articulations);
+          var index = 0;
+          let articulationVF = null;
+
+          for (const key in articulations) {
+            if (articulations.hasOwnProperty(key)) {
+              if(articulations[key] == true) { 
+                articulation = articulationsKeys[index];
+                articulationVF = this.xml2vf.translateArticulation(articulation);
+                staveNote.addArticulation(0, new Vex.Flow.Articulation(articulationVF));
+              }  
+            }
+            index++;
+          }
+        
     
         if(hasAccidental) {
           staveNote.addAccidental(0, new VF.Accidental(accidentalVF));
@@ -833,7 +919,8 @@ function XMLParser() {
           tiesVF.push(this.tieGenerator.createTie());
         }    
         notesVF.push(staveNote);
-      }     
+      }
+           
     
       return {
         notesVF: notesVF,
@@ -1036,6 +1123,7 @@ function XMLParser() {
       this.measures.then(measures => {
         var index = 0;
         var keys = Object.keys(modification);
+        
         var notes = measures[nMeasure].getElementsByTagName("note");   
 
         var deleteRestTag = true;
@@ -1050,14 +1138,30 @@ function XMLParser() {
             element = notes[nNote].getElementsByTagName(keys[index]);                                    
 
             if(element.length < 1) {  //Tag didn't exist
+
+              if(keys[index] == "fermata") {
+                var barline = notes[nNote].getElementsByTagName("barline");
+                var newFermata = document.createElement("fermata");
+
+                if(barline.length < 1) { 
+                  var newBarline = document.createElement("barline"); 
+                  newBarline.appendChild(newFermata);
+                  notes[nNote].appendChild(newBarline);
+                } else {
+                  barline[0].appendChild(newFermata);
+                  notes[nNote].appendChild(barline[0]);
+                }
+              } else {
+
               var newElement = document.createElement(keys[index]);
               if(keys[index] != "rest" && keys[index] != "dot" && keys[index] != "fermata") {
                 newElement.innerHTML = modification[key];
               }
                 notes[nNote].appendChild(newElement);
+            }
             } 
             else {
-              if(element[0].innerHTML == modification[key] && (keys[index] == "accidental" || keys[index] == "dot") ) {   //Delete element                             
+              if(element[0].innerHTML == modification[key] && (keys[index] == "accidental" || keys[index] == "dot" || keys[index] == "fermata") ) {   //Delete element                             
                 element[0].parentNode.removeChild(element[0]);
               }
               else {                
@@ -1113,9 +1217,10 @@ function XMLParser() {
           let children = notes[i].children;
           
           
-          type = (getTagFromChildren("type", children)).innerHTML; 
-          dot = getTagFromChildren("dot", children);
-          fermata = getTagFromChildren("fermata", children); //TODO
+          type = notes[i].getElementsByTagName("type")[0].innerHTML;
+          
+          dot = notes[i].getElementsByTagName("dot");
+          fermata = notes[i].getElementsByTagName("fermata");
 
           
           switch(type) {
@@ -1146,7 +1251,8 @@ function XMLParser() {
               break;
           }
                     
-          if(dot != TAG_NOT_FOUND) { tempo = tempo * 1.5; }
+          if(dot.length > 0) { tempo = tempo * 1.5; }
+          if(fermata.length > 0) { tempo = tempo * 2; }
 
           tempoInMeasure += tempo;
         }
@@ -1181,9 +1287,9 @@ function XMLParser() {
         var measure = measures[nMeasure].getElementsByTagName("note");
         var note = measure[nNote];
 
-        var notations = note.getElementsByTagName("notations");
+        var notations = note.getElementsByTagName("notations");        
 
-        if(notations != null) {
+        if(notations.length < 1) {
           let elementNotations = document.createElement("notations");
           let elementSlur = document.createElement("slur");
 
@@ -1195,50 +1301,49 @@ function XMLParser() {
           alert("Esta nota ya cuenta con un elemento de ligadura/legato.");
         }
       });
+    };
 
+    this.addNote = (newNote, nMeasure, nNote) => {
+      this.measures.then(measures => {
+        nNote = parseInt(nNote);
 
-      
+        let note = document.createElement("note");
+        let pitch = document.createElement("pitch");
+        let type = document.createElement("type");
+
+        let step = document.createElement("step");
+        let octave = document.createElement("octave");
+
+        step.innerHTML = newNote.step;
+        octave.innerHTML = newNote.octave;
+        type.innerHTML = "quarter";
+
+        pitch.appendChild(step);
+        pitch.appendChild(octave);
+
+        note.appendChild(pitch);
+        note.appendChild(type);
+
+        let measure = measures[nMeasure];
+        let notes = measures[nMeasure].getElementsByTagName("note");   
+        let referenceNode = notes[nNote];
+
+        referenceNode.parentNode.insertBefore(note, referenceNode.nextSibling);
+
+      });
 
     };
+    this.deleteNote = (nMeasure, nNote) => {
+      this.measures.then(measures => {
+        nNote = parseInt(nNote);
+
+        let notes = measures[nMeasure].getElementsByTagName("note");   
+        let note = notes[nNote];
+
+        note.parentNode.removeChild(note);
+      });
+    }
 }
-
-//img paths
-var imgLogo = "../img/logo.png";
-
-var imgNotas = [
-  "../img/editor/redonda.png",
-  "../img/editor/blanca.png",
-  "../img/editor/negra.png",
-  "../img/editor/corchea.png",
-  "../img/editor/semicorchea.png",
-  "../img/editor/fusa.png",
-  "../img/editor/semifusa.png",
-];
-var imgRest = [
-  "../img/editor/sRedonda.png",
-  "../img/editor/sBlanca.png",
-  "../img/editor/sNegra.png",
-  "../img/editor/sCorchea.png",
-  "../img/editor/sSemicorchea.png",
-  "../img/editor/sFusa.png",
-"../img/editor/sSemifusa.png",
-];
-var imgAccidentals = [
-  "../img/editor/sostenido.png",
-  "../img/editor/bemol.png",
-  "../img/editor/becuadro.png"
-];
-var imgProlongations = [
-  "../img/editor/ligadura.png",
-  "../img/editor/puntillo.png",
-  "../img/editor/calderon.png",
-];
-var imgMeasure = [
-  "../img/editor/clef.png",
-  "../img/editor/timeSignature.png",
-  "../img/editor/armadura.png",
-];
-
 
 //Components
 Vue.component("project-manager", {
@@ -1352,6 +1457,7 @@ Vue.component("nav-bar", {
         solmization: ["Do Mayor", "Sol Mayor", "Re Mayor", "La Mayor", "Mi Mayor", "Si Mayor", "Fa# Mayor", "Do# Mayor", "Fa Mayor", "Sib Mayor", "Mib Mayor", "Lab Mayor", "Reb Mayor", "Solb Mayor", "Dob Mayor", "La Menor", "Mi Menor", "Si Menor", "Fa# Menor", "Do# Menor", "Sol# Menor", "Re# Menor", "La# Menor", "Re Menor", "Sol Menor", "Do Menor", "Fa Menor", "Sib Menor", "Mib Menor", "Lab Menor"],
         alphabetic: [" C ", "G", "D", "A", "E", "B", "F#", "C#", "F", "Bb", "Eb", "Ab", "Db", "Gb", "Cb", "a", "e", "b", "f#", "c#", "g#", "d#", "a#", "d", "g", "c", "f", "bb", "eb", "ab"]
       },
+
       musicalNotation: "solmization",
 
       octave: "4",
@@ -1359,6 +1465,8 @@ Vue.component("nav-bar", {
       clef: null,
       timeSignature: null,
       keySignature: null,
+
+      mode: "Editar notas",
     }
   },
   props: ["pImgNotas", "pImgRest",  "pImgAccidentals", "pImgProlongation", "pImgMeasure", "pDisableButtons"],
@@ -1401,7 +1509,8 @@ Vue.component("nav-bar", {
           step: note,
           octave: this.octave
         }
-        this.$emit("change-note", newNote);
+        if(this.mode == "Editar notas") { this.$emit("change-note", newNote); }
+        else { this.$emit("add-note", newNote); }
       }
     },
     accidentalClicked: function(accidental) {     
@@ -1417,6 +1526,14 @@ Vue.component("nav-bar", {
     prolongationClicked: function(prolongation) {
       this.$emit("change-prolongation", prolongation);
     },
+
+    changeMode: function() {
+      if(this.mode == "Editar notas") { this.mode = "Añadir notas"}
+      else { this.mode = "Editar notas"; }
+    },
+    deleteNote: function() {
+      this.$emit("delete-note");
+    }
   },
   template:
   `<div id="nav-bar" ref="navBar">
@@ -1429,13 +1546,17 @@ Vue.component("nav-bar", {
     <div id="nav-bar-options">
       <button title="Cambiar Not. Musical" v-on:click=changeMusicalNotation()><div id="arrowNotation" class="arrow">&#8635;</div></button>
       <div class="divider"></div>
-      <div class="containerNavBar" id="nav-bar-options-notes" v-if="displayOptions['notes']">
+      <div class="containerNavBar" id="nav-bar-options-notes" v-if="displayOptions['notes']">   
+        <button title="Modo del editor" v-on:click="changeMode()">{{mode}}</button>
+        <div class="divider"></div>
         <button v-for="(note, i) in optionNotes[musicalNotation]" v-on:click="noteClicked(optionNotes['alphabetic'][i])">{{note}}</button>
         <div class="dividerBlurred"></div>
         <label id="labelOctave" title="[0-9]" for="selectOctave">Octave:</label>
         <input type="number" id="selectOctave" v-model="octave" min="0" max="9">
         <div class="divider"></div>
         <button v-for="(accidental, i) in optionAccidental[musicalNotation]" v-bind:title="accidental" v-on:click="accidentalClicked(optionAccidental['alphabetic'][i])"><img v-bind:src="pImgAccidentals[i]"></button>
+        <div class="divider"></div>
+        <button id="deleteNote" title="Eliminar nota" v-on:click="deleteNote()">&#10008;</button>
       </div>
 
       <div class="containerNavBar" id="nav-bar-options-duration" v-if="displayOptions['duration']">
@@ -1787,36 +1908,32 @@ new Vue({
 
     },
     changeProlongation: function(prolongation) {
-      var infoElementClicked = this.getInfoElementClicked();   
+      var infoElementClicked = this.getInfoElementClicked();  
+      prolongation = prolongation.toLowerCase(); 
       
       if(infoElementClicked != null) {
         var nMeasure = infoElementClicked.nMeasure;
         var nNote = infoElementClicked.nNote;
 
-        if(prolongation == "Tie") {
+        if(prolongation == "tie") {
 
           if(!this.tieStarted) {
             this.tieStarted = true;
             this.xmlParser.addTieAt("start", nMeasure, nNote);
 
-            alert("Algunas funciones de la aplicación quedaran desactivadas hasta que finalices la ligadura con otra nota.")
-
             this.showMeasureNavigator = false;
-            this.disableButtons = true;
           } else {
             this.tieStarted = false;
             this.xmlParser.addTieAt("stop", nMeasure, nNote);
 
             this.showMeasureNavigator = true;
-            this.disableButtons = false;
           }
 
         } else {
-          var newProlongation = this.alphToMusicXML.translateProlongation(prolongation);
-
+          var newProlongation = this.alphToMusicXML.translateProlongation(prolongation);         
           this.xmlParser.changeNote(newProlongation, nMeasure, nNote);
 
-          this.checkForErrors(nMeasure)
+          this.checkForErrors(nMeasure);
         }
 
         var indexMeasure = nMeasure / N_MEASURES;
@@ -1824,7 +1941,6 @@ new Vue({
         this.loadGroupMeasures(indexMeasure * N_MEASURES);
 
       }
-
     },
 
     checkForErrors: function(nMeasure) {
@@ -1837,6 +1953,43 @@ new Vue({
         else { this.showErrorScore = true;}
         
       }, 300);
+    },
+
+    addNote: function(newNote) {
+      var infoElementClicked = this.getInfoElementClicked();  
+
+      if(infoElementClicked != null) {
+        var nMeasure = infoElementClicked.nMeasure;
+        var nNote = infoElementClicked.nNote;
+
+        this.xmlParser.addNote(newNote, nMeasure, nNote);
+
+        var indexMeasure = nMeasure / N_MEASURES;
+        indexMeasure = Math.floor(indexMeasure);
+        this.loadGroupMeasures(indexMeasure * N_MEASURES);
+
+        
+        this.checkForErrors(nMeasure);
+      }
+
+    },
+    deleteNote: function() {
+      var infoElementClicked = this.getInfoElementClicked();  
+
+      if(infoElementClicked != null) {
+        var nMeasure = infoElementClicked.nMeasure;
+        var nNote = infoElementClicked.nNote;
+
+        this.xmlParser.deleteNote(nMeasure, nNote);
+
+        var indexMeasure = nMeasure / N_MEASURES;
+        indexMeasure = Math.floor(indexMeasure);
+        this.loadGroupMeasures(indexMeasure * N_MEASURES);  
+        
+        
+        this.checkForErrors(nMeasure);
+      }
+
     },
 
   },
@@ -1873,7 +2026,10 @@ new Vue({
       v-on:change-accidental="changeAccidental($event)"
       v-on:change-duration="changeType($event)"
       v-on:change-rest="changeRest($event)"
-      v-on:change-prolongation="changeProlongation($event)">
+      v-on:change-prolongation="changeProlongation($event)"
+      
+      v-on:add-note="addNote($event)"
+      v-on:delete-note="deleteNote()">
       
     </nav-bar>
 
