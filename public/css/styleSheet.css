@@ -154,6 +154,10 @@ a {
   margin-top: 20px;
 }
 
+#donwloadXML {
+  float: right;
+}
+
 #nav-bar button:disabled {
   background-color: #f75252;
 }
@@ -297,33 +301,13 @@ input[type=number] {
 
 
 
-/*---------------------Zoom Image---------------------------*/
-input[type=checkbox] {
-  display: none;
-}
+/*---------------------image-score---------------------------*/
 
 #img-score {
   margin-top: 50px;
   text-align: center;
   margin-bottom: 50px;
 }
-
-#img-score img {
-  display: block;
-  margin: 0 auto;
-
-  transition: transform 0.25s ease;
-  cursor: zoom-in;
-
-  width: 700px;
-  height: 200px;
-
-  border: solid #313131 10px;
-  border-radius: 5px;
-
-}
-
-
 input[type=checkbox]:checked ~ label > img {
   transform: scale(2.7);
   border: none;

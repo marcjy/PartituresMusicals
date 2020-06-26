@@ -1,14 +1,14 @@
 Final de partitura bugged
 
-Se pueden añadir accidentes a los silencios
+//Se pueden añadir accidentes a los silencios
 
-En situaciones con notas con octavas muy altas o muy bajas, añadiendole algunas claves en concreto, la partitura puede verse cortada por que las notas se salen del area del SVG.
+//En situaciones con notas con octavas muy altas o muy bajas, añadiendole algunas claves en concreto, la partitura puede verse cortada por que las notas se salen del area del SVG.
 
 Las ligaduras no pueden formarse en mitad de otra ligadura.
 
 Los nombres de proyecto se comparten con todos los usuarios. Es decir, el nombre del proyecto debe ser unico en TODA la base de datos.
 
-Al usar la acción de vovler hacia atras en la web, el usuario puede volver al formulario de incio de sesion aunque ya esté loggeado.
+//Al usar la acción de vovler hacia atras en la web, el usuario puede volver al formulario de incio de sesion aunque ya esté loggeado.
 
 La aplicación no detecta errores que ya estuvieran en el archivo XML inicialmente.
 
@@ -16,6 +16,20 @@ Los errores de un compás se "pierden" si se edita otro compás.
 
 No se pueden añadir atributos en mitad de la partitura. Un unico tag de atributos
 
-IMAGENES SE CARGAN TODAS
+//Se cargan todas las imagenes de la BBDD en un proyecto
 
 Dot + Fermata ?
+
+//Añadir una fermata a una semifusa bocaabajo hace que la fermata y la plica se superpongan.
+
+CAMBIAR TIME SIGNATURE
+
+
+
+
+Ties visualizacion mala
+NO poder hacer ties inside ties
+Marcar nota seleccionada
+Calderon abajo del compas
+Marcar compases con errores
+Zoom imagen

@@ -6,15 +6,16 @@ const TYPE_TAG_UNKNOWN = "DT404";
 const FORWARD = "forward";
 const BACKWARD = "backward";
 
-const N_MEASURES = 5
+const N_MEASURES = 5;
 const NEXT_GROUP_MEASURES = "next";
 const PREVIOUS_GROUP_MEASURES = "previous";
 
 const SVG_WITDH = getBrowserWidth() - 75;      //For adapting svg size to the client
-const SVG_HEIGHT = 225;
+const SVG_HEIGHT = 215;
 const SVG_MARGIN_LEFT = 50;
 const MEASURE_HEIGHT = 55;
 const MEASURE_WIDTH = SVG_WITDH/6 - 15;
+const MAX_MEASURES_ROW = 6;
 
 //img paths
 var imgLogo = "../img/logo.png";
@@ -87,6 +88,38 @@ function arrayMove(array, from, to) {
   array.splice(from, 1);
   array.splice(to, 0, element);
 }
+function typeToInt(type) {
+  let tempo = 0;
+  switch(type) {
+    case "whole":
+      tempo = 4;
+      break;
+    case "half":
+      tempo = 2;
+      break;
+    case "quarter":
+      tempo = 1;
+      break;
+    case "eighth":
+      tempo = 1/2;
+      break;
+    case "16th":
+      tempo = 1/4;
+      break;
+    case "32nd":
+      tempo = 1/8;
+      break;
+    case "64th":
+      tempo = 1/16;
+      break;
+    default:
+      tempo = null;
+      console.log("Error in typeToInt. TYPE unknown, was: " + type);
+      break;
+  }
+
+  return tempo;
+}
 //Class XMLManager
 function XMLManager() {
   this.parser = new DOMParser();
@@ -97,15 +130,17 @@ function XMLManager() {
       setTimeout(resolve, ms);
     });
   }
-  this.fetchXML = (fileXML) => {
+  this.fetchXML = (fileXML) => {    
     fetch('/xml/' + fileXML)
       .then(res => res.text())
       .then(text => { this.xml = this.parser.parseFromString(text, "application/xml"); });
-  }
+  };
   this.getMeasures = async () => {
     await this.sleep(ONE_SECOND);    
     return this.xml.getElementsByTagName('measure');
-  }
+  };
+  
+  this.getXML = () => this.xml;
 }
 //Class Note
 function Note(data) {
@@ -114,7 +149,6 @@ function Note(data) {
   this.isRest = false;
   this.hasDot = false;
   this.duration = null;
-  this.voice = null;
   this.type = null;
   this.accidental = null;
   this.pitch = {
@@ -739,11 +773,8 @@ function AlphabeticToMusicXML() {
         break;      
     }
 
-    let res = {
-      type: newType
-    };
 
-    return res;
+    return newType;
   };
   this.translateRest = (rest) => {
     let newRest = "";
@@ -792,6 +823,7 @@ function XMLParser() {
 
 
     this.measures = null;
+  
     this.infoElementClicked = null;
     this.errorMeasure = null;
     this.iterationsMeasure = 0;
@@ -803,7 +835,9 @@ function XMLParser() {
     this.getMeasures = () => this.measures;
     this.getAttributes = () => this.attributes;
     this.getErrorMeasure = () => this.errorMeasure;
+    this.getXML = () => this.xml.getXML();
   
+    //Vsiualize Score
     this.loadAttributes = (children) => {
       this.attributes.setData(getTagFromChildren("attributes", children));
       this.attributes.loadData();
@@ -916,10 +950,13 @@ function XMLParser() {
       var tiesVF = null;
       var oneMoreTime = 0;
       
+      var nMeasuresDrawn = 0;
+      var addedHigh = MEASURE_HEIGHT + 30;
+      
       for(let i = indexMeasure; i < indexMeasure + N_MEASURES + oneMoreTime; i++) {    //for each measure
         var notesVF = [];
-        var beamsVF = null;             
-        
+        var beamsVF = null;      
+                    
         if(measures[i] != undefined) {    
           children = measures[i].children;
     
@@ -949,14 +986,35 @@ function XMLParser() {
           }
     
         } else {
+          if(nMeasuresDrawn < MAX_MEASURES_ROW) {
           measureVF = new VF.Stave(oldMeasureVF.width + oldMeasureVF.x, MEASURE_HEIGHT, MEASURE_WIDTH);
           oldMeasureVF = measureVF;
+          }
+          else {
+            if(nMeasuresDrawn == MAX_MEASURES_ROW) {
+              measureVF = new VF.Stave(SVG_MARGIN_LEFT, MEASURE_HEIGHT + addedHigh, MEASURE_WIDTH);
+
+              if(clefVF != null && timeSignatureVF != null && keySignatureVF != null)  {    
+                measureVF
+                .addClef(clefVF)            
+                .addTimeSignature(timeSignatureVF)
+                .addModifier(new Vex.Flow.KeySignature(keySignatureVF));
+              }
+        
+              oldMeasureVF = measureVF;
+            } else {
+              measureVF = new VF.Stave(oldMeasureVF.width + oldMeasureVF.x, MEASURE_HEIGHT + addedHigh, MEASURE_WIDTH);
+              oldMeasureVF = measureVF;
+            }
+          }
         }
         
         //Draw measure
         measureVF
         .setContext(this.contextVF)
         .draw();
+
+        nMeasuresDrawn++;
     
         if(notesVF.length != 0) {
           //Draw
@@ -992,7 +1050,6 @@ function XMLParser() {
     
       this.contextVF.closeGroup();
     };
-
     this.loadInfoForVexFlow = (indexMeasure, deleteContext) => {
       this.measures
       .then(measures => {
@@ -1022,45 +1079,7 @@ function XMLParser() {
       });
     };
 
-    this.createAttributesTag = () => {
-      let attributes = document.createElement('attributes');
-
-      let key = document.createElement('key');
-      let clef = document.createElement('clef');
-      let time = document.createElement('time');
-
-      let fifths = document.createElement('fifths');
-      let mode = document.createElement('mode');
-      let sign = document.createElement('sign');
-      let line = document.createElement('line');
-      let beats = document.createElement('beats');
-      let beatType = document.createElement('beat-type');
-
-      //DEFAULT VALUES
-      time.setAttribute('print-object', 'yes');
-      time.setAttribute('symbol', 'common');
-
-      fifths.innerHTML = "0";
-      mode.innerHTML = "major";
-      sign.innerHTML = "C";
-      line.innerHTML = "1";
-      beats.innerHTML = "4";
-      beatType.innerHTML = "4";
-
-      key.appendChild(fifths);
-      key.appendChild(mode);
-      clef.appendChild(sign);
-      clef.appendChild(line);
-      time.appendChild(beats);
-      time.appendChild(beatType); 
-      
-      attributes.appendChild(key);
-      attributes.appendChild(clef);
-      attributes.appendChild(time);
-
-      return attributes;
-    };
-
+    //Change Attributes
     this.changeAttribute = (attribute) => {
       this.measures.then( (measures) => {  
         var index = 0;
@@ -1092,24 +1111,24 @@ function XMLParser() {
       });
     };
 
+    //Change Notes
     this.changeAccidental = (accidental, nMeasure, nNote) => {
-      nNote = parseInt(nNote);   
+      nNote = parseInt(nNote);         
 
       this.measures.then( measures => {
         let notes = measures[nMeasure].getElementsByTagName("note");
         let note = notes[nNote];
-        let accidentalType = accidental.accidental;
         let accidentalElement  = note.getElementsByTagName("accidental");
 
         if( (note.getElementsByTagName("rest")).length == 0) { //Note selected its not a rest
           if( accidentalElement.length < 1) { //Note doesnt have an accidental
 
             let newAccidentalElement = document.createElement("accidental");
-            newAccidentalElement.innerHTML = accidentalType;
+            newAccidentalElement.innerHTML = accidental;
 
             note.appendChild(newAccidentalElement);          
           } else {
-            if( accidentalElement[0].innerHTML != accidentalType) { accidentalElement[0].innerHTML = accidentalType; } 
+            if( accidentalElement[0].innerHTML != accidental) { accidentalElement[0].innerHTML = accidental; } 
             else { accidentalElement[0].parentNode.removeChild(accidentalElement[0]); }
           }   
         } else { alert("No se pueden añadir accidentes a los silencios.")}  
@@ -1150,12 +1169,14 @@ function XMLParser() {
       this.measures.then(measures => {
 
         let notes = measures[nMeasure].getElementsByTagName("note");
-        let note = notes[nNote];
+        let note = notes[nNote];       
 
-        console.log(note.innerHTML);
-        
+        if(note.getElementsByTagName("type").length > 0) { note.getElementsByTagName("type")[0].innerHTML = type; }
+        else {
+          let typeElement = document.createElement("type");
+          typeElement.innerHTML = type;
+        }
 
-        note.getElementsByTagName("type")[0].innerHTML = type.type;
 
         if(note.getElementsByTagName("rest").length > 0) {
           let restTag = note.getElementsByTagName("rest")[0];
@@ -1187,11 +1208,13 @@ function XMLParser() {
         let restElement = document.createElement("rest");
         
         note.appendChild(restElement);
-        note.getElementsByTagName("type")[0].innerHTML = rest.type;
-
-
-
-
+        console.log(note);
+        
+        if(note.getElementsByTagName("type").length > 0) { note.getElementsByTagName("type")[0].innerHTML = rest.type; }
+        else {
+          let typeElement = document.createElement("type");
+          typeElement.innerHTML = rest.type;
+        }
       });
     };
     this.changeProlongation = (prolongation, nMeasure, nNote) => {
@@ -1204,8 +1227,13 @@ function XMLParser() {
         switch(prolongation) {
           case "dotted":
             if(note.getElementsByTagName("dot").length == 0) {
+              let type = note.getElementsByTagName("type");              
+
+              if(type[0].innerHTML == "64th") {alert("No se puede añadir un puntillo a esta duración. Si se hiciese se crearía una duración menor a 1/64")}
+              else {
               let dotElement = document.createElement("dot");
               note.appendChild(dotElement);
+              }
             } else {
               let dotElement = note.getElementsByTagName("dot");
               dotElement[0].parentNode.removeChild(dotElement[0]);
@@ -1230,91 +1258,74 @@ function XMLParser() {
             break;
         }
       });
+    };
+
+    //Get Tempos
+    this.getMaxTempoFromTimeSignature = () => {
+      let beatType = this.attributes.getBeatType();
+      let beats = this.attributes.getBeats();
+      let beatTypeToDuration = 0;
+      let maxTempo = 0;
+
+      switch(beatType) {
+        case "2":
+          beatTypeToDuration = 2;
+          break;
+        case "4":
+          beatTypeToDuration = 1;
+          break;
+        case "8":
+          beatTypeToDuration = 1/2;
+          break;
+      }
+
+      maxTempo = beats * beatTypeToDuration;
+
+      return maxTempo;
     }
+    this.getTempoFromMeasure = measureTag => {
+      let tempo = 0;      
+      let notes = measureTag.getElementsByTagName("note");
+      
+      for(let i = 0; i < notes.length; i++) { tempo += this.getTempoFromNote(notes[i]); }
 
-    this.checkMeasure = (nAffectedMeasure) => {      
+      return tempo;
+    };
+    this.getTempoFromNote = noteTag => {
+      let tempo = 0;
+
+      if(noteTag.getElementsByTagName("type").length > 0) {
+        let type = noteTag.getElementsByTagName("type")[0].innerHTML;
+        tempo = typeToInt(type);
+      } else {
+        let duration = noteTag.getElementsByTagName("duration").innerHTML;
+        let divisions = parseInt(this.attributes.getDivisions());
+
+        tempo = duration / divisions;
+      }
+
+      if(noteTag.getElementsByTagName("dot").length > 0) { tempo = tempo * 1.5; }
+      if(noteTag.getElementsByTagName("fermata").length > 0) {tempo = tempo * 2; }
+
+
+      return tempo;
+    };
+
+    //Check tempos
+    this.checkMeasure = (nAffectedMeasure) => {    
+      nAffectedMeasure = parseInt(nAffectedMeasure);
+
       this.measures.then(measures => {
-        nAffectedMeasure = parseInt(nAffectedMeasure);
-
         var affectedMeasure = measures[nAffectedMeasure];
-
-        var tempoInMeasure = 0;
-        var maxTempo = 0;
-        var notes = affectedMeasure.getElementsByTagName("note");
-
-        var beatType = this.attributes.getBeatType();
-        var beats = this.attributes.getBeats();
-        var beatTypeToDuration = 0;
         var error = false;
 
-        switch(beatType) {
-          case "2":
-            beatTypeToDuration = 2;
-            break;
-          case "4":
-            beatTypeToDuration = 1;
-            break;
-          case "8":
-            beatTypeToDuration = 1/2;
-            break;
-        }
-
-        maxTempo = beats * beatTypeToDuration;
-
-        var type = null;
-        var tempo = null;
-        var dot = null;
-        var fermata = null;        
-        
-        for(let i = 0; i < notes.length; i++) {  
-
-          let children = notes[i].children;
-          
-          
-          type = notes[i].getElementsByTagName("type")[0].innerHTML;
-          
-          dot = notes[i].getElementsByTagName("dot");
-          fermata = notes[i].getElementsByTagName("fermata");
-
-          
-          switch(type) {
-            case "whole":
-              tempo = 4;
-              break;
-            case "half":
-              tempo = 2;
-              break;
-            case "quarter":
-              tempo = 1;
-              break;
-            case "eighth":
-              tempo = 1/2;
-              break;
-            case "16th":
-              tempo = 1/4;
-              break;
-            case "32nd":
-              tempo = 1/8;
-              break;
-            case "64th":
-              tempo = 1/16;
-              break;
-            default:
-              tempo = null;
-              console.log("Error in checkMeasure. TYPE unknown, was: " + type);
-              break;
-          }
-                    
-          if(dot.length > 0) { tempo = tempo * 1.5; }
-          if(fermata.length > 0) { tempo = tempo * 2; }
-
-          tempoInMeasure += tempo;
-        }
+        var maxTempo = this.getMaxTempoFromTimeSignature();
+        var tempoInMeasure = this.getTempoFromMeasure(affectedMeasure);
 
         if(tempoInMeasure > maxTempo) {
           error = true;
           this.errorMeasure = {
-            title: "El compás número " + ((nAffectedMeasure - 5 * this.iterationsMeasure) + 1) + " tiene demasiados pulsos.",
+            title: "El compás número " + ((nAffectedMeasure - N_MEASURES * this.iterationsMeasure) + 1) + " tiene demasiados pulsos.",
             target: maxTempo,
             actual: tempoInMeasure
           };
@@ -1327,13 +1338,88 @@ function XMLParser() {
               actual: tempoInMeasure
             };
           }
-
-          if(!error) {console.log("OL");
-           this.errorMeasure = null; }
         }
+
+        if(!error) { this.errorMeasure = null; }
       });     
     };
+    this.checkScore = () => {
+      this.measures.then( measures => {
 
+        let maxTempo = this.getMaxTempoFromTimeSignature();
+        let tempoMeasure = 0;
+        let tempoNote = 0;
+        let countTempo = 0;
+        let indexExceeded = 0;
+        let notes = null;
+
+        let tempoExceeded = false;
+        let j = 0;
+
+        for(let i = 0; i < measures.length; i++) { //For each measure in score
+          j = 0;
+          countTempo = 0;
+          indexExceeded = 0;
+          tempoExceeded = false;
+
+          notes = measures[i].getElementsByTagName("note");
+          tempoMeasure = this.getTempoFromMeasure(measures[i]);
+
+          if(tempoMeasure > maxTempo) {
+            console.log("Shifting right notes in measure: " + i);
+
+            while(j < notes.length && !tempoExceeded) { //For each note in measure
+              tempoNote = this.getTempoFromNote(notes[j]);  
+              console.log(tempoNote);
+                          
+
+              if(tempoNote > maxTempo) { //This note can't be in any measure due to it's duration -> remove it.
+                notes[j].parentNode.removeChild(notes[j]);
+              } else {                
+                countTempo += tempoNote;
+
+                if(countTempo > maxTempo) {
+                  tempoExceeded = true;
+                  indexExceeded = j;
+                }
+              }
+              j++;
+            }
+
+            if(tempoExceeded) { //Add notes to the next measure. This removes them from the actual parent 
+              let shiftingNotes = [];
+              for(k = indexExceeded; k < notes.length; k++) {
+                shiftingNotes.push(notes[k]);
+              }
+
+              shiftingNotes.forEach( note => {
+                if( (i+1) <= measures.length) {
+                  measures[i+1].appendChild(note);
+
+                } else { //Create new measures
+                  let newMeasure = document.createElement("measure");
+                  measures.appendChild(newMeasure);
+                  newMeasure.appendChild(note);
+                }
+              });
+
+              tempoInMeasure = this.getTempoFromMeasure(measures[i]);
+            }
+            
+
+          } else {
+            if(tempoMeasure < maxTempo) {
+              console.log("Shifting left notes in measure: " + i);
+            }
+          }
+        }
+        
+
+      });
+
+    };
+
+    //Add ties
     this.addTieAt = (type,nMeasure, nNote) => {
       this.measures.then(measures =>{      
         nNote = parseInt(nNote);
@@ -1357,6 +1443,7 @@ function XMLParser() {
       });
     };
 
+    //Add/Remove notes
     this.addNote = (newNote, nMeasure, nNote) => {
       this.measures.then(measures => {
         nNote = parseInt(nNote);
@@ -1394,7 +1481,8 @@ function XMLParser() {
         let notes = measures[nMeasure].getElementsByTagName("note");   
         let note = notes[nNote];
 
-        note.parentNode.removeChild(note);
+        note.parentNode.removeChild(note);     
+        if(measures[nMeasure].getElementsByTagName("note").length == 0) { measures[nMeasure].parentNode.removeChild(measures[nMeasure]); }
       });
     }
 }
@@ -1591,14 +1679,19 @@ Vue.component("nav-bar", {
     },
     deleteNote: function() {
       this.$emit("delete-note");
+    },
+
+    downloadXML: function() {
+      this.$emit("download-xml");
     }
   },
   template:
   `<div id="nav-bar" ref="navBar">
     <div id="nav-bar-menu">
-      <button v-bind:disabled="pDisableButtons" v-on:click="displayOption('notes')">Notas</button>
-      <button v-bind:disabled="pDisableButtons" v-on:click="displayOption('duration')">Duración</button>
-      <button v-bind:disabled="pDisableButtons" v-on:click="displayOption('measure')">Compás</button>
+      <button v-on:click="displayOption('notes')">Notas</button>
+      <button v-on:click="displayOption('duration')">Duración</button>
+      <button v-on:click="displayOption('measure')">Compás</button>
+      <button id="donwloadXML" v-on:click="downloadXML()">DownloadXML</button>    
     </div>
 
     <div id="nav-bar-options">
@@ -1618,9 +1711,9 @@ Vue.component("nav-bar", {
       </div>
 
       <div class="containerNavBar" id="nav-bar-options-duration" v-if="displayOptions['duration']">
-        <button v-bind:disabled="pDisableButtons" v-for="(duration, i) in optionDuration[musicalNotation]" v-bind:title="duration" v-on:click="durationClicked(optionDuration['alphabetic'][i])"><img v-bind:src="pImgNotas[i]"></button>
+        <button  v-for="(duration, i) in optionDuration[musicalNotation]" v-bind:title="duration" v-on:click="durationClicked(optionDuration['alphabetic'][i])"><img v-bind:src="pImgNotas[i]"></button>
         <div class="divider"></div>
-        <button v-bind:disabled="pDisableButtons" v-for="(rest, i) in optionRest[musicalNotation]" v-bind:title="rest" v-on:click="restClicked(optionRest['alphabetic'][i])"><img v-bind:src="pImgRest[i]"></button>
+        <button v-for="(rest, i) in optionRest[musicalNotation]" v-bind:title="rest" v-on:click="restClicked(optionRest['alphabetic'][i])"><img v-bind:src="pImgRest[i]"></button>
         
         <div class="divider"></div>
         <div id="prolongation">
@@ -1648,8 +1741,6 @@ Vue.component("nav-bar", {
         <select v-model="keySignature" id="selectKeysignature">
           <option v-for="(key, i) in optionKeySignature[musicalNotation]" v-bind:value="optionKeySignature['alphabetic'][i]">{{key}}</option>
         </select>
-
- 
       </div>
 
     </div>
@@ -1723,16 +1814,18 @@ Vue.component("img-score", {
     props: ["pProjectId"],
     template:
     `<div id="img-score">
-      <div >
-        <input type="checkbox" id="zoomCheck">
-        <label for="zoomCheck">
-        <img v-bind:src="actualImage">
-        </label>
-        <div>
+      <div class="centerContent">
+        <v-zoomer-gallery
+          style="width: 800px; height: 300px;"
+          :list="images"
+          v-model="indexImages">
+        </v-zoomer-gallery>
+      </div>
+      <br>
+      <div>
           <button class="back" v-on:click="decrementIndex()" v-bind:disabled="deactivatePrevious">&#8249;</button>
           <button class="next" v-on:click="incrementIndex()" v-bind:disabled="deactivateNext">&#8250;</button>
         </div>
-      </div>
     </div>`
 
 });
@@ -1773,7 +1866,7 @@ Vue.component("measure-navigator", {
       </div>
     </div>
   </div>`
-})
+});
 Vue.component("errors-score", {
   props: ["pError"],
   template:
@@ -1786,10 +1879,10 @@ Vue.component("errors-score", {
       </div>
     </div>
   </div>`
-})
-
-
+});
+ 
 //Vue instance
+Vue.use(VueZoomer)
 new Vue({
   el: "#main",
   data: {
@@ -1806,6 +1899,7 @@ new Vue({
 
     projects: null,
     projectId: null,
+    projectFileXML: null,
     showProjectManager: true,
 
     showNavBar: false,
@@ -1843,13 +1937,14 @@ new Vue({
       this.resetShowComponents();
       this.showScoreComponents();
 
-      this.projectName = infoProject.projectId;
+      this.projectId = infoProject.projectId;
+      this.projectFileXML = infoProject.fileXML;
 
       this.alphToMusicXML = new AlphabeticToMusicXML();
       this.xmlParser = new XMLParser();
-      this.xmlParser.loadXML(infoProject.fileXML);
+      this.xmlParser.loadXML(this.projectFileXML);
       this.xmlParser.loadInfoForVexFlow(0, false);
-  
+
       this.measures = this.xmlParser.getMeasures();
     },
 
@@ -1894,6 +1989,7 @@ new Vue({
 
       var newTimeSignature = this.alphToMusicXML.translateTimeSignature(timeSignature);
       this.xmlParser.changeAttribute(newTimeSignature);
+      this.xmlParser.checkScore(newTimeSignature);
 
       let indexMeasure = this.xmlParser.iterationsMeasure * N_MEASURES;
       this.loadGroupMeasures(indexMeasure);
@@ -1954,7 +2050,7 @@ new Vue({
         this.loadGroupMeasures(indexMeasure * N_MEASURES);
 
         this.checkForErrors(nMeasure);
-      }
+      }      
     },
     changeRest: function(rest) {
       var infoElementClicked = this.getInfoElementClicked();   
@@ -2057,6 +2153,21 @@ new Vue({
 
     },
 
+    downloadXML: function() {
+      let formData = new FormData();
+      let xmlString = this.xmlParser.getXML().documentElement.outerHTML;    
+
+      formData.append('file', xmlString);
+      
+      fetch('/download/' + this.projectFileXML, {           
+        method:'POST',
+        body: formData,
+      })
+      .catch((error) => {
+        console.log('Error in downloadXML function: ', error);
+      });
+    }
+
   },
   template:
   `<div id="main">
@@ -2091,12 +2202,14 @@ new Vue({
       v-on:change-prolongation="changeProlongation($event)"
       
       v-on:add-note="addNote($event)"
-      v-on:delete-note="deleteNote()">
+      v-on:delete-note="deleteNote()"
+      
+      v-on:download-xml="downloadXML()">
       
     </nav-bar>
 
     <img-score v-if="showImgScore"
-      v-bind:pProjectId="projectName">
+      v-bind:pProjectId="projectId">
       </img-score>
 
     <errors-score v-if="showErrorScore"

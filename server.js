@@ -5,6 +5,8 @@ const fs = require('fs');
 const mysql = require('mysql');
 const bcrypt = require('bcrypt');
 const path = require('path');
+const mime = require('mime');
+const { type } = require('os');
 const app = express();
 const port = 3000;
 
@@ -103,11 +105,21 @@ dataBase.connectToDataBase();
 
 //Routing
 app.get('/', (req, res) => {
-  res.sendFile(__dirname + "/public/logIn.html");
+  if(req.session.loggedin) { res.redirect('/home'); }
+  else { res.sendFile(__dirname + "/public/logIn.html"); }
 });
+
 app.post('/upload', (req, res) => { 
   let xmlFile = req.files.xmlFile;
-  let imgFile = req.files.imgFile;
+  let imgFile = req.files.imgFile;  
+
+  xmlFile.name = xmlFile.name.replace(/\s/g, '');
+  if(Array.isArray(imgFile)) {
+  imgFile.forEach(file => { file.name = file.name.replace(/\s/g, ''); });
+  } else {
+    imgFile.name = imgFile.name.replace(/\s/g, '');
+  }
+
   let images = "";
   let imgProject = null;
 
@@ -150,17 +162,43 @@ app.post('/upload', (req, res) => {
 
 
 });
+app.post('/download/:fileXML', (req, res) => {
+  let fileName = req.params.fileXML;
+  let xmlString = req.body.file;
+  let tagXML = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+  <!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">` 
+
+  fs.writeFile(XML_FOLDER + fileName, tagXML + xmlString, err => {
+    if(err) { res.status(500).send(err); }
+
+    // let fileStream = fs.createReadStream(XML_FOLDER + fileName);  
+    // var mimetype = mime.lookup(fileName);
+
+    // res.setHeader('Content-disposition', 'attachment; filename=' + fileName);
+    // res.setHeader('Content-type', mimetype);
+
+    // fileStream.pipe(res);
+    // console.log("Downloading file...");
+
+    res.download(XML_FOLDER + fileName, fileName, err => {
+      if(err) {console.log(err); }
+      else {console.log("File downloaded");
+      }
+    });
+  });
+ 
+});
+
 app.get('/xml/:fileXML', (req, res) => {  
   let file = req.params.fileXML;
+  
   res.set('Content-Type', 'text/xml');
   res.sendFile(XML_FOLDER + file);
 });
 app.get('/images/:projectId', (req, res) => {
   let projectId = req.params.projectId; 
 
-  dataBase.selectFromTable("fileIMG", "project", "project.projectId = \'" + projectId + "\'", queryResult => {
-    console.log(queryResult);
-    
+  dataBase.selectFromTable("fileIMG", "project", "project.projectId = \'" + projectId + "\'", queryResult => {    
     if(queryResult.length > 0) {      
       res.json(queryResult);
     } else {
@@ -182,7 +220,6 @@ app.get('/getProjects', (req, res) => {
 });
 
 app.get('/home', (req, res) => {
-
   if(req.session.loggedin) { res.sendFile(__dirname + "/index.html"); }
   else { res.redirect('/'); }
 })
