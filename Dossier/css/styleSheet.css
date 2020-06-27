@@ -1,0 +1,67 @@
+  h2 {
+      text-decoration: underline;
+  }
+
+  #container {
+     display: grid;
+     justify-content: center;
+     grid-template-columns: 500px 500px;
+     text-align: center;
+    }
+
+   #container p {
+    padding: 20px;
+    border: 1px solid;
+  }
+
+  h1 {
+      text-align: center;
+  }
+
+  .centerContent {
+      text-align: center;
+  }
+
+  td, tr, th {
+      border: solid 1px black;
+  }
+
+  td, th {
+    text-align: center;
+    padding: 8px;
+  }
+
+  li {
+      padding: 5px;
+      text-align: left;
+  }
+
+  th {
+      background-color: #01b11c;
+  }
+
+  a {
+    text-decoration: none;
+    color: darkolivegreen;
+    font-weight: 900;
+    font-size: 15px;
+  }
+
+
+body{
+    font-family: Helvetica;
+    margin: 60px;
+}
+
+/* Table Styles */
+
+.table-wrapper{
+    margin: 10px 70px 70px;
+    box-shadow: 0px 35px 50px rgba( 0, 0, 0, 0.2 );
+}
+
+table {
+    border-collapse: collapse;
+    width: 90%;
+    margin: 10px;
+}
