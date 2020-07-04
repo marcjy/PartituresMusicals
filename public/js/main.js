@@ -1465,7 +1465,22 @@ function XMLParser() {
         note.appendChild(pitch);
         note.appendChild(type);
 
-        let measure = measures[nMeasure];
+        //Add click event
+        note.setAttribute("measure", nMeasure);
+        note.setAttribute("note", nNote + 1);
+        note.addEventListener("click", (elementClicked) => {
+          let element = elementClicked.path[3];
+          let attrElement = element.attributes;
+          let info = "";
+
+          for(let i = 0; i < attrElement.length; i++) {
+            if(attrElement[i].name == "measure") { info += attrElement[i].nodeValue + ", "; }
+            if(attrElement[i].name == "note") { info += attrElement[i].nodeValue; }
+          }    
+          this.infoElementClicked = info;      
+          document.getElementById("nav-bar").setAttribute("infoElementClicked", info);
+        });
+
         let notes = measures[nMeasure].getElementsByTagName("note");   
         let referenceNode = notes[nNote];
 
@@ -2084,13 +2099,9 @@ new Vue({
           if(!this.tieStarted) {
             this.tieStarted = true;
             this.xmlParser.addTieAt("start", nMeasure, nNote);
-
-            this.showMeasureNavigator = false;
           } else {
             this.tieStarted = false;
             this.xmlParser.addTieAt("stop", nMeasure, nNote);
-
-            this.showMeasureNavigator = true;
           }
 
         } else {   
@@ -2110,8 +2121,14 @@ new Vue({
       setTimeout(() =>{
         this.errorScore = this.xmlParser.getErrorMeasure();
   
-        if(this.errorScore == null) { this.showErrorScore = false; }
-        else { this.showErrorScore = true;}
+        if(this.errorScore == null) {
+          document.getElementById("containerImgErr").style.display = 'block'; 
+          this.showErrorScore = false; 
+        }
+        else { 
+          document.getElementById("containerImgErr").style.display = 'grid';
+          this.showErrorScore = true;
+        }
         
       }, 300);
     },
@@ -2207,14 +2224,15 @@ new Vue({
       v-on:download-xml="downloadXML()">
       
     </nav-bar>
+<div id="containerImgErr">
+    <errors-score v-if="showErrorScore"
+      v-bind:pError="errorScore">
+    </errors-score>
 
     <img-score v-if="showImgScore"
       v-bind:pProjectId="projectId">
       </img-score>
-
-    <errors-score v-if="showErrorScore"
-      v-bind:pError="errorScore">
-    </errors-score>
+</div>
 
 
     <measure-navigator v-if="showMeasureNavigator"

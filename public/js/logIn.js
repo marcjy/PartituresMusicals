@@ -33,7 +33,7 @@ Vue.component("login", {
           O <br>
           | <br>
           <br>
-        <button v-on:click="signIn()">Registrate</button>
+        <button v-on:click="signIn()">Regístrate</button>
   
   
       </form>

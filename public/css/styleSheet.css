@@ -303,10 +303,20 @@ input[type=number] {
 
 /*---------------------image-score---------------------------*/
 
+#containerImgErr {
+  display: block;
+  grid-template-columns: 350px 900px;
+  column-gap: 6vmax;
+}
+
+
 #img-score {
   margin-top: 50px;
   text-align: center;
   margin-bottom: 50px;
+
+  grid-column-start: 2;
+
 }
 input[type=checkbox]:checked ~ label > img {
   transform: scale(2.7);
@@ -351,6 +361,7 @@ input[type=checkbox]:checked ~ label > img {
 /*--------------------ErrorScore---------------------------*/
 #errors-score {
   text-align: center;
+  margin-top: 75px;
 }
 #windowError {
   display: inline-block;
